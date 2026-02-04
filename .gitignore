@@ -3,8 +3,10 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
-.env
 db.sqlite3
+
+# Environment variables
+.env
 
 # Django
 media/
@@ -16,6 +18,13 @@ dist/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Hardhat / Blockchain
+artifacts/
+cache/
+coverage/
+types/
+bundle/
 
 # OS
 .DS_Store
