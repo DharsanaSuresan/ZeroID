@@ -12,6 +12,10 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from rest_framework.parsers import MultiPartParser, FormParser
+
+
+
 from .models import (
     Certificate, 
     VerificationLog, 
@@ -155,6 +159,11 @@ class CertificateViewSet(viewsets.ModelViewSet):
     """
     
     permission_classes = [permissions.IsAuthenticated]
+    # class CertificateViewSet(viewsets.ModelViewSet):
+
+    parser_classes = (MultiPartParser, FormParser)
+    permission_classes = [permissions.IsAuthenticated]
+
     
     def get_queryset(self):
         user = self.request.user
