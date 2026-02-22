@@ -53,6 +53,7 @@ class Certificate(models.Model):
     # Primary identifiers
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     certificate_id = models.CharField(max_length=100, unique=True, editable=False)
+    ipfs_cid = models.CharField(max_length=255, blank=True, null=True)
     
     # Certificate details
     title = models.CharField(max_length=255)
