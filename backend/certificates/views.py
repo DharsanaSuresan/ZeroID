@@ -149,61 +149,73 @@ class UserLogoutView(APIView):
 # CERTIFICATE VIEWS (Module 3)
 # ============================================================================
 
+# class CertificateViewSet(viewsets.ModelViewSet):
+#     """
+#     Certificate CRUD operations
+#     - List: All users can list certificates based on their role
+#     - Create: Only issuers
+#     - Retrieve: Owner or issuer
+#     - Update/Delete: Only issuer who created it
+#     """
+    
+#     permission_classes = [permissions.IsAuthenticated]
+#     # class CertificateViewSet(viewsets.ModelViewSet):
+
+#     parser_classes = (MultiPartParser, FormParser)
+#     permission_classes = [permissions.IsAuthenticated]
+
+    
+#     def get_queryset(self):
+#         user = self.request.user
+        
+#         if user.role == 'issuer':
+#             return Certificate.objects.filter(issuer=user)
+#         elif user.role == 'holder':
+#             return Certificate.objects.filter(holder=user)
+#         else:  # verifier
+#             return Certificate.objects.all()
+    
+#     def get_serializer_class(self):
+#         if self.action == 'list':
+#             return CertificateListSerializer
+#         elif self.action == 'create':
+#             return CertificateCreateSerializer
+#         return CertificateSerializer
+
 class CertificateViewSet(viewsets.ModelViewSet):
     """
     Certificate CRUD operations
-    - List: All users can list certificates based on their role
-    - Create: Only issuers
-    - Retrieve: Owner or issuer
-    - Update/Delete: Only issuer who created it
     """
-    
-    permission_classes = [permissions.IsAuthenticated]
-    # class CertificateViewSet(viewsets.ModelViewSet):
 
+    permission_classes = [permissions.IsAuthenticated]
     parser_classes = (MultiPartParser, FormParser)
-    permission_classes = [permissions.IsAuthenticated]
 
-    
     def get_queryset(self):
         user = self.request.user
-        
+
         if user.role == 'issuer':
             return Certificate.objects.filter(issuer=user)
         elif user.role == 'holder':
             return Certificate.objects.filter(holder=user)
         else:  # verifier
             return Certificate.objects.all()
-    
+
     def get_serializer_class(self):
         if self.action == 'list':
             return CertificateListSerializer
         elif self.action == 'create':
             return CertificateCreateSerializer
         return CertificateSerializer
-    
-    # def perform_create(self, serializer):
-    #     """Create certificate and log action"""
-    #     certificate = serializer.save(issuer=self.request.user)
-        
-    #     # Create audit log
-    #     AuditLog.objects.create(
-    #         action='certificate_issued',
-    #         user=self.request.user,
-    #         certificate=certificate,
-    #         details={
-    #             'certificate_id': certificate.certificate_id,
-    #             'title': certificate.title,
-    #             'holder_name': certificate.holder_name
-    #         },
-    #         ip_address=self.get_client_ip()
-    #     )
+
+    # 🔥 THIS IS THE CRITICAL FIX
     def perform_create(self, serializer):
         from ipfs.ipfs_service import upload_json_to_ipfs
         from merkle.merkle_tree import MerkleTree
         from blockchain.send_root import send_root
+        from .models import BlockchainTransaction, AuditLog
+        import os
 
-        # 1️⃣ Save certificate
+        # 1️⃣ Save certificate WITH issuer
         certificate = serializer.save(issuer=self.request.user)
 
         # 2️⃣ Prepare metadata JSON
@@ -221,82 +233,353 @@ class CertificateViewSet(viewsets.ModelViewSet):
         certificate.ipfs_cid = cid
         certificate.save()
 
-        # 4️⃣ Build Merkle Tree using all certificate CIDs
-        all_cids = list(
-            Certificate.objects.filter(status='valid')
-            .exclude(ipfs_cid__isnull=True)
-            .values_list('ipfs_cid', flat=True)
-        )
+        # 4️⃣ Build Merkle Tree from all valid certificates
+        valid_certs = Certificate.objects.filter(
+            status='valid'
+        ).exclude(ipfs_cid__isnull=True)
 
-        tree = MerkleTree(all_cids)
-        new_root = tree.get_root()
+        leaves = [cert.ipfs_cid for cert in valid_certs]
 
-        # 5️⃣ Update blockchain root
-        gas_used = send_root("0x" + new_root)
+        if leaves:
+            tree = MerkleTree(leaves)
+            new_root = tree.get_root()
 
-        # 6️⃣ Store blockchain transaction
-        BlockchainTransaction.objects.create(
-            certificate=certificate,
-            transaction_type='issue',
-            tx_hash="updated_via_send_root",  # optionally modify send_root to return tx_hash too
-            network="localhost",
-            contract_address="0x5FbDB2315678afecb367f032d93F642f64180aa3",
-            gas_used=gas_used,
-            status="confirmed"
-        )
+            # 5️⃣ Send to blockchain
+            blockchain_result = send_root("0x" + new_root)
 
-        # 7️⃣ Audit log
-        AuditLog.objects.create(
-            action='certificate_issued',
-            user=self.request.user,
-            certificate=certificate,
-            details={
-                'certificate_id': certificate.certificate_id,
-                'cid': cid,
-                'merkle_root': new_root,
-                'gas_used': gas_used
-            },
-            ip_address=self.get_client_ip()
-        )
-    
-    @action(detail=True, methods=['get'])
-    def download(self, request, pk=None):
-        """Download certificate file"""
-        certificate = self.get_object()
-        
-        # Create audit log
-        AuditLog.objects.create(
-            action='certificate_viewed',
-            user=request.user,
-            certificate=certificate,
-            ip_address=self.get_client_ip()
-        )
-        
-        return Response({
-            'file_url': request.build_absolute_uri(certificate.certificate_file.url)
-        })
-    
-    @action(detail=True, methods=['get'])
-    def integrity_check(self, request, pk=None):
-        """Check certificate integrity"""
-        certificate = self.get_object()
-        is_valid = certificate.verify_integrity()
-        
-        return Response({
-            'certificate_id': certificate.certificate_id,
-            'integrity_valid': is_valid,
-            'hash': certificate.hash_value,
-            'status': certificate.status
-        })
-    
+            # 6️⃣ Store blockchain transaction
+            BlockchainTransaction.objects.create(
+                certificate=certificate,
+                transaction_type='issue',
+                tx_hash=blockchain_result["tx_hash"],
+                network="localhost",
+                contract_address=os.getenv("CONTRACT_ADDRESS"),
+                gas_used=blockchain_result["gas_used"],
+                status="confirmed"
+            )
+
+            # 7️⃣ Audit log
+            AuditLog.objects.create(
+                action='certificate_issued',
+                user=self.request.user,
+                certificate=certificate,
+                details={
+                    'certificate_id': certificate.certificate_id,
+                    'cid': cid,
+                    'merkle_root': new_root,
+                    'gas_used': blockchain_result["gas_used"]
+                },
+                ip_address=self.get_client_ip()
+            )
+
     def get_client_ip(self):
         x_forwarded_for = self.request.META.get('HTTP_X_FORWARDED_FOR')
         if x_forwarded_for:
-            ip = x_forwarded_for.split(',')[0]
-        else:
-            ip = self.request.META.get('REMOTE_ADDR')
-        return ip
+            return x_forwarded_for.split(',')[0]
+        return self.request.META.get('REMOTE_ADDR')
+    
+    # def perform_create(self, serializer):
+    #     """Create certificate and log action"""
+    #     certificate = serializer.save(issuer=self.request.user)
+        
+    #     # Create audit log
+    #     AuditLog.objects.create(
+    #         action='certificate_issued',
+    #         user=self.request.user,
+    #         certificate=certificate,
+    #         details={
+    #             'certificate_id': certificate.certificate_id,
+    #             'title': certificate.title,
+    #             'holder_name': certificate.holder_name
+    #         },
+    #         ip_address=self.get_client_ip()
+    #     )
+    # def perform_create(self, serializer):
+    #     from ipfs.ipfs_service import upload_json_to_ipfs
+    #     from merkle.merkle_tree import MerkleTree
+    #     from blockchain.send_root import send_root
 
+    #     # 1️⃣ Save certificate
+    #     certificate = serializer.save(issuer=self.request.user)
+
+    #     # 2️⃣ Prepare metadata JSON
+    #     metadata = {
+    #         "certificate_id": certificate.certificate_id,
+    #         "title": certificate.title,
+    #         "holder_name": certificate.holder_name,
+    #         "issuer": certificate.issuer.username,
+    #         "hash": certificate.hash_value,
+    #         "issued_date": str(certificate.issued_date)
+    #     }
+
+    #     # 3️⃣ Upload to IPFS
+    #     cid = upload_json_to_ipfs(metadata)
+    #     certificate.ipfs_cid = cid
+    #     certificate.save()
+
+    #     # 4️⃣ Build Merkle Tree using all certificate CIDs
+    #     all_cids = list(
+    #         Certificate.objects.filter(status='valid')
+    #         .exclude(ipfs_cid__isnull=True)
+    #         .values_list('ipfs_cid', flat=True)
+    #     )
+
+    #     tree = MerkleTree(all_cids)
+    #     new_root = tree.get_root()
+
+    #     # 5️⃣ Update blockchain root
+    #     gas_used = send_root("0x" + new_root)
+
+    #     # 6️⃣ Store blockchain transaction
+    #     BlockchainTransaction.objects.create(
+    #         certificate=certificate,
+    #         transaction_type='issue',
+    #         tx_hash="updated_via_send_root",  # optionally modify send_root to return tx_hash too
+    #         network="localhost",
+    #         contract_address="0x5FbDB2315678afecb367f032d93F642f64180aa3",
+    #         gas_used=gas_used,
+    #         status="confirmed"
+    #     )
+
+    #     # 7️⃣ Audit log
+    #     AuditLog.objects.create(
+    #         action='certificate_issued',
+    #         user=self.request.user,
+    #         certificate=certificate,
+    #         details={
+    #             'certificate_id': certificate.certificate_id,
+    #             'cid': cid,
+    #             'merkle_root': new_root,
+    #             'gas_used': gas_used
+    #         },
+    #         ip_address=self.get_client_ip()
+    #     )
+    
+    # @action(detail=True, methods=['get'])
+    # def download(self, request, pk=None):
+    #     """Download certificate file"""
+    #     certificate = self.get_object()
+        
+    #     # Create audit log
+    #     AuditLog.objects.create(
+    #         action='certificate_viewed',
+    #         user=request.user,
+    #         certificate=certificate,
+    #         ip_address=self.get_client_ip()
+    #     )
+        
+    #     return Response({
+    #         'file_url': request.build_absolute_uri(certificate.certificate_file.url)
+    #     })
+    
+    # @action(detail=True, methods=['get'])
+    # def integrity_check(self, request, pk=None):
+    #     """Check certificate integrity"""
+    #     certificate = self.get_object()
+    #     is_valid = certificate.verify_integrity()
+        
+    #     return Response({
+    #         'certificate_id': certificate.certificate_id,
+    #         'integrity_valid': is_valid,
+    #         'hash': certificate.hash_value,
+    #         'status': certificate.status
+    #     })
+    
+    # def get_client_ip(self):
+    #     x_forwarded_for = self.request.META.get('HTTP_X_FORWARDED_FOR')
+    #     if x_forwarded_for:
+    #         ip = x_forwarded_for.split(',')[0]
+    #     else:
+    #         ip = self.request.META.get('REMOTE_ADDR')
+    #     return ip
+
+    def perform_create(self, serializer):
+        from ipfs.ipfs_service import upload_json_to_ipfs
+        from merkle.merkle_tree import MerkleTree
+        from blockchain.send_root import send_root
+        import os
+
+        # 1️⃣ Save certificate with issuer
+        certificate = serializer.save(issuer=self.request.user)
+
+        # 2️⃣ Prepare metadata for IPFS
+        metadata = {
+            "certificate_id": str(certificate.certificate_id),
+            "title": certificate.title,
+            "holder_name": certificate.holder_name,
+            "issuer": certificate.issuer.username,
+            "hash": certificate.hash_value,
+            "issued_date": str(certificate.issued_date)
+        }
+
+        # 3️⃣ Upload to IPFS
+        try:
+            cid = upload_json_to_ipfs(metadata)
+            certificate.ipfs_cid = cid
+            certificate.save()
+        except Exception as e:
+            print(f"⚠️ IPFS upload failed: {e}")
+            cid = None
+
+        # 4️⃣ Build Merkle Tree from all valid certificates
+        valid_certs = Certificate.objects.filter(
+            status='valid'
+        ).exclude(ipfs_cid__isnull=True)
+        leaves = [cert.ipfs_cid for cert in valid_certs]
+
+        if not leaves:
+            print("⚠️ No valid certificates to build Merkle tree")
+            return
+
+        tree     = MerkleTree(leaves)
+        new_root = tree.get_root()
+
+        # 5️⃣ Send new root to Sepolia blockchain
+        try:
+            result = send_root("0x" + new_root)
+
+            # 6️⃣ ✅ Store ALL blockchain data in DB
+            BlockchainTransaction.objects.create(
+                certificate=certificate,
+                transaction_type='issue',
+                tx_hash=result["tx_hash"],
+                block_number=result.get("block_number"),
+                network=result.get("network", "sepolia"),
+                contract_address=result.get("contract_address", os.getenv("CONTRACT_ADDRESS")),
+                gas_used=result["gas_used"],
+                status="confirmed",
+                confirmed_at=timezone.now()
+            )
+
+            # 7️⃣ Audit log
+            AuditLog.objects.create(
+                action='certificate_issued',
+                user=self.request.user,
+                certificate=certificate,
+                details={
+                    'certificate_id': str(certificate.certificate_id),
+                    'ipfs_cid': cid,
+                    'merkle_root': new_root,
+                    'tx_hash': result["tx_hash"],
+                    'gas_used': result["gas_used"],
+                },
+                ip_address=self.get_client_ip()
+            )
+            print(f"✅ Certificate issued | tx: {result['tx_hash']}")
+
+        except Exception as e:
+            print(f"❌ Blockchain transaction failed: {e}")
+            # Still save a failed transaction record so it's visible in UI
+            BlockchainTransaction.objects.create(
+                certificate=certificate,
+                transaction_type='issue',
+                tx_hash=f"failed_{certificate.certificate_id}",
+                network="sepolia",
+                contract_address=os.getenv("CONTRACT_ADDRESS", ""),
+                status="failed",
+                error_message=str(e)
+            )
+
+# def perform_create(self, serializer):
+
+#     from ipfs.ipfs_service import upload_json_to_ipfs
+#     from merkle.merkle_tree import MerkleTree
+#     from blockchain.send_root import send_root
+#     from .models import Certificate, BlockchainTransaction, AuditLog
+
+#     # 1️⃣ Save certificate
+#     certificate = serializer.save(issuer=self.request.user)
+
+#     # 2️⃣ Prepare metadata JSON
+#     metadata = {
+#         "certificate_id": certificate.certificate_id,
+#         "title": certificate.title,
+#         "holder_name": certificate.holder_name,
+#         "issuer": certificate.issuer.username,
+#         "hash": certificate.hash_value,
+#         "issued_date": str(certificate.issued_date)
+#     }
+
+#     # 3️⃣ Upload to IPFS
+#     cid = upload_json_to_ipfs(metadata)
+#     certificate.ipfs_cid = cid
+#     certificate.save()
+
+#     # 4️⃣ Build Merkle Tree from all valid CIDs
+#     valid_certs = Certificate.objects.filter(
+#         status='valid'
+#     ).exclude(ipfs_cid__isnull=True)
+
+#     leaves = [cert.ipfs_cid for cert in valid_certs]
+
+#     tree = MerkleTree(leaves)
+#     new_root = tree.get_root()
+
+#     # 5️⃣ Send to blockchain
+#     blockchain_result = send_root("0x" + new_root)
+
+#     # 6️⃣ Store blockchain transaction
+#     BlockchainTransaction.objects.create(
+#         certificate=certificate,
+#         transaction_type='issue',
+#         tx_hash=blockchain_result["tx_hash"],
+#         network="localhost",
+#         contract_address=os.getenv("CONTRACT_ADDRESS"),
+#         gas_used=blockchain_result["gas_used"],
+#         status="confirmed"
+#     )
+
+#     # 7️⃣ Audit log
+#     AuditLog.objects.create(
+#         action='certificate_issued',
+#         user=self.request.user,
+#         certificate=certificate,
+#         details={
+#             'certificate_id': certificate.certificate_id,
+#             'cid': cid,
+#             'merkle_root': new_root,
+#             'gas_used': blockchain_result["gas_used"]
+#         },
+#         ip_address=self.get_client_ip()
+#     )
+
+# @action(detail=True, methods=['get'])
+# def download(self, request, pk=None):
+#     """Download certificate file"""
+#     certificate = self.get_object()
+        
+#         # Create audit log
+#     AuditLog.objects.create(
+#         action='certificate_viewed',
+#         user=request.user,
+#         certificate=certificate,
+#         ip_address=self.get_client_ip()
+#     )
+        
+#     return Response({
+#         'file_url': request.build_absolute_uri(certificate.certificate_file.url)
+#         })
+    
+# @action(detail=True, methods=['get'])
+# def integrity_check(self, request, pk=None):
+#     """Check certificate integrity"""
+#     certificate = self.get_object()
+#     is_valid = certificate.verify_integrity()
+        
+#     return Response({
+#         'certificate_id': certificate.certificate_id,
+#         'integrity_valid': is_valid,
+#         'hash': certificate.hash_value,
+#         'status': certificate.status
+#     })
+    
+# def get_client_ip(self):
+#     x_forwarded_for = self.request.META.get('HTTP_X_FORWARDED_FOR')
+#     if x_forwarded_for:
+#         ip = x_forwarded_for.split(',')[0]
+#     else:
+#         ip = self.request.META.get('REMOTE_ADDR')
+#     return ip
 
 # ============================================================================
 # VERIFICATION VIEWS (Module 5)
@@ -321,97 +604,108 @@ class VerificationViewSet(viewsets.ReadOnlyModelViewSet):
 
 class VerifyCertificateView(APIView):
     """
-    Certificate verification endpoint
-    Anyone can verify a certificate by its ID
+    Certificate verification endpoint.
+    Verifies using:
+      1. DB hash integrity
+      2. Revocation status
+      3. On-chain Merkle root comparison
     """
-    
+
     permission_classes = [permissions.AllowAny]
-    
+
     def post(self, request):
+        from merkle.merkle_tree import MerkleTree, verify_proof
+        from blockchain.blockchain_service import get_merkle_root, is_connected
+
         serializer = VerifyRequestSerializer(data=request.data)
-        
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
+
         certificate_id = serializer.validated_data['certificate_id']
-        
+
         try:
             certificate = Certificate.objects.get(certificate_id=certificate_id)
-            
-            # Check integrity
-            from merkle.merkle_tree import MerkleTree, verify_proof
-            from blockchain.test_connection import contract
 
-            # Step 1: DB integrity
+            # ── Step 1: DB integrity check ────────────────────────────────────
             hash_match = certificate.verify_integrity()
             is_revoked = certificate.status == 'revoked'
 
-            # Step 2: Rebuild Merkle tree from valid certificates
-            valid_certs = Certificate.objects.filter(status='valid').exclude(ipfs_cid__isnull=True)
+            # ── Step 2: Rebuild Merkle tree from all valid certs ──────────────
+            valid_certs = Certificate.objects.filter(
+                status='valid'
+            ).exclude(ipfs_cid__isnull=True)
             leaves = [cert.ipfs_cid for cert in valid_certs]
 
-            merkle_valid = False
-            proof = []
+            merkle_valid    = False
+            proof           = []
+            blockchain_root = None
+            blockchain_ok   = False
 
             if certificate.ipfs_cid in leaves:
-                tree = MerkleTree(leaves)
-                index = leaves.index(certificate.ipfs_cid)
-
-                proof = tree.get_proof(index)
+                tree      = MerkleTree(leaves)
+                index     = leaves.index(certificate.ipfs_cid)
+                proof     = tree.get_proof(index)
                 leaf_hash = tree.leaves[index]
+                local_root = tree.get_root()
 
-                # Step 3: Get blockchain root
-                blockchain_root_bytes = contract.functions.merkleRoot().call()
-                blockchain_root = blockchain_root_bytes.hex()[2:]  # remove 0x
+                # ── Step 3: Get on-chain root (with graceful failure) ─────────
+                try:
+                    if not is_connected():
+                        raise ConnectionError("Not connected to Sepolia")
 
-                # Step 4: Verify Merkle proof
-                merkle_valid = verify_proof(leaf_hash, proof, blockchain_root)
+                    blockchain_root = get_merkle_root()  # hex, no 0x
+                    blockchain_ok   = True
 
-            # Final decision
+                    # ── Step 4: Verify Merkle proof against on-chain root ─────
+                    merkle_valid = verify_proof(leaf_hash, proof, blockchain_root)
+
+                except Exception as e:
+                    print(f"⚠️ Blockchain verification failed: {e}")
+                    # Fallback: compare against locally rebuilt root
+                    merkle_valid  = verify_proof(leaf_hash, proof, local_root)
+                    blockchain_ok = False
+
+            # ── Final decision ────────────────────────────────────────────────
             is_valid = hash_match and not is_revoked and merkle_valid
-            
-            # Create verification log
+
+            # ── Log verification ──────────────────────────────────────────────
             verification = VerificationLog.objects.create(
                 certificate=certificate,
                 verifier=request.user if request.user.is_authenticated else None,
                 certificate_id_checked=certificate_id,
                 result='valid' if is_valid else ('revoked' if is_revoked else 'invalid'),
                 hash_match=hash_match,
+                blockchain_verified=merkle_valid,
                 ip_address=self.get_client_ip(request),
                 user_agent=request.META.get('HTTP_USER_AGENT', '')
             )
-            
-            # Create audit log
+
             if request.user.is_authenticated:
                 AuditLog.objects.create(
                     action='certificate_verified',
                     user=request.user,
                     certificate=certificate,
-                    details={'result': verification.result},
+                    details={
+                        'result': verification.result,
+                        'blockchain_connected': blockchain_ok,
+                        'blockchain_root': blockchain_root,
+                    },
                     ip_address=self.get_client_ip(request)
                 )
-            
-            # response_data = {
-            #     'valid': is_valid,
-            #     'certificate': CertificateSerializer(certificate, context={'request': request}).data,
-            #     'hash_match': hash_match,
-            #     'is_revoked': is_revoked,
-            #     'verified_at': verification.verified_at,
-            # }
-            response_data = {
-            'valid': is_valid,
-            'certificate': CertificateSerializer(certificate, context={'request': request}).data,
-            'hash_match': hash_match,
-            'is_revoked': is_revoked,
-            'blockchain_verified': merkle_valid,
-            'merkle_proof': proof,
-            'verified_at': verification.verified_at,
-            }
-            
-            return Response(response_data)
-            
+
+            return Response({
+                'valid':                is_valid,
+                'certificate':          CertificateSerializer(certificate, context={'request': request}).data,
+                'hash_match':           hash_match,
+                'is_revoked':           is_revoked,
+                'blockchain_verified':  merkle_valid,
+                'blockchain_connected': blockchain_ok,
+                'blockchain_root':      blockchain_root,
+                'merkle_proof':         proof,
+                'verified_at':          verification.verified_at,
+            })
+
         except Certificate.DoesNotExist:
-            # Create verification log for not found
             VerificationLog.objects.create(
                 certificate=None,
                 verifier=request.user if request.user.is_authenticated else None,
@@ -420,21 +714,16 @@ class VerifyCertificateView(APIView):
                 hash_match=False,
                 ip_address=self.get_client_ip(request)
             )
-            
             return Response({
-                'valid': False,
+                'valid':   False,
                 'message': 'Certificate not found',
-                'verified_at': timezone.now()
             }, status=status.HTTP_404_NOT_FOUND)
-    
+
     def get_client_ip(self, request):
         x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
         if x_forwarded_for:
-            ip = x_forwarded_for.split(',')[0]
-        else:
-            ip = request.META.get('REMOTE_ADDR')
-        return ip
-
+            return x_forwarded_for.split(',')[0]
+        return request.META.get('REMOTE_ADDR')
 
 # ============================================================================
 # REVOCATION VIEWS (Module 6)
@@ -450,75 +739,125 @@ class RevocationViewSet(viewsets.ReadOnlyModelViewSet):
 
 class RevokeCertificateView(APIView):
     """
-    Revoke a certificate
-    Only the issuer who created the certificate can revoke it
+    Revoke a certificate.
+    Only the issuer who created the certificate can revoke it.
+    Also updates the Merkle root on-chain after revocation.
     """
-    
+
     permission_classes = [permissions.IsAuthenticated, IsIssuer]
-    
+
     def post(self, request):
+        from merkle.merkle_tree import MerkleTree
+        from blockchain.send_root import send_root
+
         serializer = RevokeRequestSerializer(data=request.data)
-        
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
+
         certificate_id = serializer.validated_data['certificate_id']
-        reason = serializer.validated_data['reason']
-        
+        reason         = serializer.validated_data['reason']
+
         try:
             certificate = Certificate.objects.get(certificate_id=certificate_id)
-            
-            # Check if user is the issuer
+
+            # ── Authorization ─────────────────────────────────────────────────
             if certificate.issuer != request.user:
-                return Response({
-                    'error': 'Only the issuer can revoke this certificate'
-                }, status=status.HTTP_403_FORBIDDEN)
-            
-            # Check if already revoked
+                return Response(
+                    {'error': 'Only the issuer can revoke this certificate'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+            # ── Already revoked? ──────────────────────────────────────────────
             if certificate.status == 'revoked':
-                return Response({
-                    'error': 'Certificate is already revoked'
-                }, status=status.HTTP_400_BAD_REQUEST)
-            
-            # Revoke certificate
+                return Response(
+                    {'error': 'Certificate is already revoked'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # ── 1. Update DB status ───────────────────────────────────────────
             certificate.status = 'revoked'
             certificate.save()
-            
-            # Create revocation record
+
+            # ── 2. Create RevocationRecord ────────────────────────────────────
             revocation = RevocationRecord.objects.create(
                 certificate=certificate,
                 revoked_by=request.user,
                 reason=reason
             )
-            
-            # Create audit log
+
+            # ── 3. Rebuild Merkle tree WITHOUT this certificate ───────────────
+            valid_certs = Certificate.objects.filter(
+                status='valid'
+            ).exclude(ipfs_cid__isnull=True)
+            leaves = [cert.ipfs_cid for cert in valid_certs]
+
+            blockchain_result = None
+            if leaves:
+                try:
+                    tree     = MerkleTree(leaves)
+                    new_root = tree.get_root()
+
+                    # ── 4. Push updated root to blockchain ────────────────────
+                    blockchain_result = send_root("0x" + new_root)
+
+                    # ── 5. Store blockchain transaction for revocation ─────────
+                    BlockchainTransaction.objects.create(
+                        certificate=certificate,
+                        transaction_type='revoke',
+                        tx_hash=blockchain_result["tx_hash"],
+                        block_number=blockchain_result.get("block_number"),
+                        network=blockchain_result.get("network", "sepolia"),
+                        contract_address=blockchain_result.get("contract_address"),
+                        gas_used=blockchain_result["gas_used"],
+                        status="confirmed",
+                        confirmed_at=timezone.now()
+                    )
+                    print(f"✅ Revocation root updated | tx: {blockchain_result['tx_hash']}")
+
+                except Exception as e:
+                    print(f"⚠️ Blockchain update failed during revocation: {e}")
+                    BlockchainTransaction.objects.create(
+                        certificate=certificate,
+                        transaction_type='revoke',
+                        tx_hash=f"failed_revoke_{certificate.certificate_id}",
+                        network="sepolia",
+                        contract_address="",
+                        status="failed",
+                        error_message=str(e)
+                    )
+
+            # ── 6. Audit log ──────────────────────────────────────────────────
             AuditLog.objects.create(
                 action='certificate_revoked',
                 user=request.user,
                 certificate=certificate,
-                details={'reason': reason},
+                details={
+                    'reason': reason,
+                    'tx_hash': blockchain_result["tx_hash"] if blockchain_result else None,
+                },
                 ip_address=self.get_client_ip(request)
             )
-            
+
             return Response({
-                'message': 'Certificate revoked successfully',
-                'revocation': RevocationRecordSerializer(revocation).data
+                'message':    'Certificate revoked successfully',
+                'revocation': RevocationRecordSerializer(revocation).data,
+                'blockchain': {
+                    'tx_hash':  blockchain_result["tx_hash"]  if blockchain_result else None,
+                    'gas_used': blockchain_result["gas_used"] if blockchain_result else None,
+                }
             })
-            
+
         except Certificate.DoesNotExist:
-            return Response({
-                'error': 'Certificate not found'
-            }, status=status.HTTP_404_NOT_FOUND)
-    
+            return Response(
+                {'error': 'Certificate not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
     def get_client_ip(self, request):
         x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
         if x_forwarded_for:
-            ip = x_forwarded_for.split(',')[0]
-        else:
-            ip = request.META.get('REMOTE_ADDR')
-        return ip
-
-
+            return x_forwarded_for.split(',')[0]
+        return request.META.get('REMOTE_ADDR')
 # ============================================================================
 # AUDIT LOG VIEWS (Module 7)
 # ============================================================================

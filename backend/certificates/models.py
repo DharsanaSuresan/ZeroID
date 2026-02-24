@@ -133,6 +133,12 @@ class Certificate(models.Model):
 # ============================================================================
 # VERIFICATION MODULE (Module 5)
 # ============================================================================
+class BlockchainTransaction(models.Model):
+    certificate = models.ForeignKey(
+        Certificate,
+        related_name="blockchain_transactions",
+        on_delete=models.CASCADE
+    )
 
 class VerificationLog(models.Model):
     """Track all verification attempts"""

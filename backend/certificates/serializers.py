@@ -52,9 +52,8 @@ class UserLoginSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True)
 
 
-# ============================================================================
 # CERTIFICATE SERIALIZERS (Module 3)
-# ============================================================================
+
 
 class CertificateSerializer(serializers.ModelSerializer):
     """Full certificate serializer"""
@@ -89,28 +88,73 @@ class CertificateSerializer(serializers.ModelSerializer):
         return obj.status == 'valid' and obj.verify_integrity()
 
 
+# class CertificateCreateSerializer(serializers.ModelSerializer):
+#     """Simplified serializer for certificate creation"""
+    
+#     class Meta:
+#         model = Certificate
+#         fields = ['title', 'holder_name', 'description', 'holder', 
+#                   'certificate_file', 'expiry_date']
+    
+#     def create(self, validated_data):
+#         # Issuer is set from request.user in view
+#         return Certificate.objects.create(**validated_data)
+
 class CertificateCreateSerializer(serializers.ModelSerializer):
     """Simplified serializer for certificate creation"""
-    
+
     class Meta:
         model = Certificate
-        fields = ['title', 'holder_name', 'description', 'holder', 
-                  'certificate_file', 'expiry_date']
-    
-    def create(self, validated_data):
-        # Issuer is set from request.user in view
-        return Certificate.objects.create(**validated_data)
+        fields = [
+            'title',
+            'holder_name',
+            'description',
+            'holder',
+            'certificate_file',
+            'expiry_date'
+        ]
 
+
+# class CertificateListSerializer(serializers.ModelSerializer):
+#     """Lightweight serializer for listing certificates"""
+    
+#     issuer_name = serializers.CharField(source='issuer.get_full_name', read_only=True)
+    
+#     class Meta:
+#         model = Certificate
+#         fields = ['id', 'certificate_id', 'title', 'holder_name', 
+#                   'issuer_name', 'status', 'issued_date', 'hash_value']
+class BlockchainTransactionSerializer(serializers.ModelSerializer):
+    certificate_id = serializers.CharField(source='certificate.certificate_id', read_only=True)
+
+    class Meta:
+        model = BlockchainTransaction
+        fields = [
+            'id', 'certificate', 'certificate_id', 'transaction_type',
+            'tx_hash', 'block_number', 'network', 'contract_address',
+            'gas_used', 'gas_price', 'status', 'error_message',
+            'created_at', 'confirmed_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'confirmed_at']
 
 class CertificateListSerializer(serializers.ModelSerializer):
-    """Lightweight serializer for listing certificates"""
-    
     issuer_name = serializers.CharField(source='issuer.get_full_name', read_only=True)
-    
+    blockchain_transactions = BlockchainTransactionSerializer(many=True, read_only=True)
+
     class Meta:
         model = Certificate
-        fields = ['id', 'certificate_id', 'title', 'holder_name', 
-                  'issuer_name', 'status', 'issued_date', 'hash_value']
+        fields = [
+            'id',
+            'certificate_id',
+            'title',
+            'holder_name',
+            'issuer_name',
+            'status',
+            'issued_date',
+            'hash_value',
+            'ipfs_cid',
+            'blockchain_transactions'
+        ]
 
 
 # ============================================================================

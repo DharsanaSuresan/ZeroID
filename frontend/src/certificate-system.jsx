@@ -1,1353 +1,537 @@
-// import React, { useState, useEffect } from 'react';
-// import { Upload, CheckCircle, XCircle, Shield, FileText, Users, Lock, Eye, AlertTriangle, Download, LogOut } from 'lucide-react';
-
-// //API////
-// /////
-// const API_BASE = "http://127.0.0.1:8000";
-
-// // async function api(url, method = "GET", body = null, auth = true) {
-// //   const headers = {};
-
-// //   if (auth) {
-// //     const token = localStorage.getItem("access");
-// //     if (token) headers.Authorization = `Bearer ${token}`;
-// //   }
-
-// //   if (body && !(body instanceof FormData)) {
-// //     headers["Content-Type"] = "application/json";
-// //   }
-
-// //   const response = await fetch(API_BASE + url, {
-// //     method,
-// //     headers,
-// //     body: body ? JSON.stringify(body) : null,
-// //   });
-
-// //   if (!response.ok) {
-// //     throw new Error("API error");
-// //   }
-
-// //   return response.json();
-// // }
-
-
-// async function api(url, method = "GET", body = null, auth = true) {
-//   const headers = {};
-
-//   if (auth) {
-//     const token = localStorage.getItem("access");
-//     if (token) headers.Authorization = `Bearer ${token}`;
-//   }
-
-//   const options = {
-//     method,
-//     headers,
-//   };
-
-//   if (body) {
-//     if (body instanceof FormData) {
-//       options.body = body;   // 🔥 DO NOT stringify
-//     } else {
-//       headers["Content-Type"] = "application/json";
-//       options.body = JSON.stringify(body);
-//     }
-//   }
-
-//   const response = await fetch(API_BASE + url, options);
-
-//   if (!response.ok) {
-//     const errorText = await response.text();
-//     console.log("Backend error:", errorText); // debug
-//     throw new Error("API error");
-//   }
-
-//   return response.json();
-// }
-
-
-
-// //fetch certificate from backend
-// useEffect(() => {
-//   loadCertificates();
-// }, []);
-
-// const loadCertificates = async () => {
-//   try {
-//     const data = await CertificateModule.listCertificates();
-//     setCertificates(data);
-//   } catch (err) {
-//     console.error(err);
-//   }
-// };
-
-
-// // ============================================================================
-// // DATABASE & FILE STORAGE SIMULATION (Modules 8 & 9)
-// // ============================================================================
-// const DATABASE = {
-//   users: [
-//     { id: 1, username: 'issuer1', password: 'pass123', role: 'issuer', name: 'Sarah Johnson' },
-//     { id: 2, username: 'holder1', password: 'pass123', role: 'holder', name: 'Michael Chen' },
-//     { id: 3, username: 'verifier1', password: 'pass123', role: 'verifier', name: 'Emily Rodriguez' }
-//   ],
-//   certificates: [],
-//   verificationLogs: [],
-//   revocationRecords: []
-// };
-
-// const FILE_STORAGE = {};
-
-// // ============================================================================
-// // SECURITY & INTEGRITY MODULE (Module 4)
-// // ============================================================================
-// const SecurityModule = {
-//   generateHash: (data) => {
-//     // SHA-256 simulation
-//     let hash = 0;
-//     const str = JSON.stringify(data);
-//     for (let i = 0; i < str.length; i++) {
-//       const char = str.charCodeAt(i);
-//       hash = ((hash << 5) - hash) + char;
-//       hash = hash & hash;
-//     }
-//     return 'SHA256:' + Math.abs(hash).toString(16).padStart(16, '0') + Date.now().toString(16);
-//   },
-  
-//   compareHash: (original, computed) => {
-//     return original === computed;
-//   }
-// };
-
-// // ============================================================================
-// // CERTIFICATE MANAGEMENT MODULE (Module 3)
-// // ============================================================================
-// // const CertificateModule = {
-// //   createCertificate: (issuerID, holderName, title, file) => {
-// //     const certID = 'CERT-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9).toUpperCase();
-// //     const metadata = {
-// //       holderName,
-// //       title,
-// //       issuerID,
-// //       issuedDate: new Date().toISOString()
-// //     };
-    
-// //     const hash = SecurityModule.generateHash({ certID, metadata, fileName: file.name });
-    
-// //     const certificate = {
-// //       id: certID,
-// //       holderName,
-// //       title,
-// //       issuerID,
-// //       issuedDate: metadata.issuedDate,
-// //       hash,
-// //       fileName: file.name,
-// //       fileSize: file.size,
-// //       status: 'valid'
-// //     };
-    
-// //     DATABASE.certificates.push(certificate);
-// //     FILE_STORAGE[certID] = file;
-    
-// //     AuditModule.log('certificate_issued', certID, issuerID, { holderName, title });
-    
-// //     return certificate;
-// //   },
-  
-// //   getCertificate: (certID) => {
-// //     return DATABASE.certificates.find(cert => cert.id === certID);
-// //   }
-// // };
-
-
-// const handleCreateCertificate = async (e) => {
-//   e.preventDefault();
-
-//   if (!UserModule.authorize(currentUser, 'create_certificate')) {
-//     showNotification('Unauthorized action', 'error');
-//     return;
-//   }
-
-//   try {
-//     const newCert = await CertificateModule.createCertificate(
-//       currentUser.id,
-//       certForm.holderName,
-//       certForm.title,
-//       certForm.file
-//     );
-
-//     // 🔥 ADD newly created certificate to state
-//     setCertificates(prev => [newCert, ...prev]);
-
-//     showNotification('Certificate created successfully!', 'success');
-
-//     setCertForm({ holderName: '', title: '', file: null });
-
-//   } catch (error) {
-//     console.error(error);
-//     showNotification('Failed to create certificate', 'error');
-//   }
-// };
-
-
-
-
-// // ============================================================================
-// // VERIFICATION MODULE (Module 5)
-// // ============================================================================
-// const VerificationModule = {
-//   verifyCertificate: (certID, verifierID) => {
-//     const cert = CertificateModule.getCertificate(certID);
-    
-//     if (!cert) {
-//       AuditModule.log('verification_failed', certID, verifierID, { reason: 'Certificate not found' });
-//       return { valid: false, reason: 'Certificate not found' };
-//     }
-    
-//     // Recompute hash
-//     const metadata = {
-//       holderName: cert.holderName,
-//       title: cert.title,
-//       issuerID: cert.issuerID,
-//       issuedDate: cert.issuedDate
-//     };
-//     const computedHash = SecurityModule.generateHash({ 
-//       certID: cert.id, 
-//       metadata, 
-//       fileName: cert.fileName 
-//     });
-    
-//     // Compare hashes
-//     const hashMatch = SecurityModule.compareHash(cert.hash, computedHash);
-    
-//     // Check revocation
-//     const isRevoked = cert.status === 'revoked';
-    
-//     const result = {
-//       valid: hashMatch && !isRevoked,
-//       certificate: cert,
-//       hashMatch,
-//       isRevoked,
-//       verifiedAt: new Date().toISOString()
-//     };
-    
-//     AuditModule.log('verification_attempted', certID, verifierID, result);
-    
-//     return result;
-//   }
-// };
-
-// // ============================================================================
-// // REVOCATION MODULE (Module 6)
-// // ============================================================================
-// const RevocationModule = {
-//   revokeCertificate: (certID, issuerID, reason) => {
-//     const cert = CertificateModule.getCertificate(certID);
-    
-//     if (!cert) {
-//       return { success: false, message: 'Certificate not found' };
-//     }
-    
-//     if (cert.issuerID !== issuerID) {
-//       return { success: false, message: 'Unauthorized: You can only revoke certificates you issued' };
-//     }
-    
-//     if (cert.status === 'revoked') {
-//       return { success: false, message: 'Certificate already revoked' };
-//     }
-    
-//     cert.status = 'revoked';
-//     const revocationRecord = {
-//       certID,
-//       revokedBy: issuerID,
-//       revokedAt: new Date().toISOString(),
-//       reason
-//     };
-    
-//     DATABASE.revocationRecords.push(revocationRecord);
-//     AuditModule.log('certificate_revoked', certID, issuerID, { reason });
-    
-//     return { success: true, message: 'Certificate revoked successfully' };
-//   }
-// };
-
-// // ============================================================================
-// // AUDIT & LOGGING MODULE (Module 7)
-// // ============================================================================
-// const AuditModule = {
-//   log: (action, certID, userID, details) => {
-//     const logEntry = {
-//       id: Date.now() + Math.random(),
-//       action,
-//       certID,
-//       userID,
-//       timestamp: new Date().toISOString(),
-//       details
-//     };
-    
-//     DATABASE.verificationLogs.push(logEntry);
-//   },
-  
-//   getLogs: (filter = {}) => {
-//     let logs = [...DATABASE.verificationLogs];
-    
-//     if (filter.certID) {
-//       logs = logs.filter(log => log.certID === filter.certID);
-//     }
-    
-//     return logs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-//   }
-// };
-
-// // ============================================================================
-// // USER & ROLE MANAGEMENT MODULE (Module 2)
-// // ============================================================================
-// const UserModule = {
-//   authenticate: (username, password) => {
-//     const user = DATABASE.users.find(u => u.username === username && u.password === password);
-//     if (user) {
-//       AuditModule.log('user_login', null, user.id, { username });
-//       return { success: true, user: { ...user, password: undefined } };
-//     }
-//     return { success: false, message: 'Invalid credentials' };
-//   },
-  
-//   authorize: (user, action) => {
-//     const permissions = {
-//       issuer: ['create_certificate', 'revoke_certificate', 'view_certificates', 'view_logs'],
-//       holder: ['view_own_certificates'],
-//       verifier: ['verify_certificate', 'view_logs']
-//     };
-    
-//     return permissions[user.role]?.includes(action) || false;
-//   }
-// };
-
-// // ============================================================================
-// // MAIN APPLICATION COMPONENT (Module 1 - UI Layer)
-// // ============================================================================
-// export default function CertificateManagementSystem() {
-//   const [currentUser, setCurrentUser] = useState(null);
-//   const [loginForm, setLoginForm] = useState({ username: '', password: '' });
-//   const [activeTab, setActiveTab] = useState('dashboard');
-  
-//   // Certificate form state
-//   const [certForm, setCertForm] = useState({ holderName: '', title: '', file: null });
-//   const [verifyID, setVerifyID] = useState('');
-//   const [verificationResult, setVerificationResult] = useState(null);
-//   const [revokeForm, setRevokeForm] = useState({ certID: '', reason: '' });
-//   const [notification, setNotification] = useState(null);
-
-//   const showNotification = (message, type = 'info') => {
-//     setNotification({ message, type });
-//     setTimeout(() => setNotification(null), 4000);
-//   };
-
-//   // const handleLogin = (e) => {
-//   //   e.preventDefault();
-//   //   const result = UserModule.authenticate(loginForm.username, loginForm.password);
-//   //   if (result.success) {
-//   //     setCurrentUser(result.user);
-//   //     showNotification(`Welcome, ${result.user.name}!`, 'success');
-//   //   } else {
-//   //     showNotification(result.message, 'error');
-//   //   }
-//   // };
-//   const handleLogin = async (e) => {
-//   e.preventDefault();
-
-//   try {
-//     const response = await fetch("http://127.0.0.1:8000/auth/login/", {
-//       method: "POST",
-//       headers: {
-//         "Content-Type": "application/json",
-//       },
-//       body: JSON.stringify({
-//         username: loginForm.username,
-//         password: loginForm.password,
-//       }),
-//     });
-
-//     if (!response.ok) {
-//       throw new Error("Invalid credentials");
-//     }
-
-//     const data = await response.json();
-
-//     // Store JWT tokens
-//     localStorage.setItem("access", data.tokens.access);
-//     localStorage.setItem("refresh", data.tokens.refresh);
-
-//     // Set logged-in user
-//     setCurrentUser(data.user);
-
-//     showNotification(`Welcome, ${data.user.username}!`, "success");
-//   } catch (error) {
-//     showNotification("Login failed. Check username/password.", "error");
-//   }
-// };
-
-
-//   const handleLogout = () => {
-//     AuditModule.log('user_logout', null, currentUser.id, {});
-//     setCurrentUser(null);
-//     setActiveTab('dashboard');
-//     showNotification('Logged out successfully', 'info');
-//   };
-
-//   // const handleCreateCertificate = (e) => {
-//   //   e.preventDefault();
-//   //   if (!UserModule.authorize(currentUser, 'create_certificate')) {
-//   //     showNotification('Unauthorized action', 'error');
-//   //     return;
-//   //   }
-    
-//   //   const cert = CertificateModule.createCertificate(
-//   //     currentUser.id,
-//   //     certForm.holderName,
-//   //     certForm.title,
-//   //     certForm.file
-//   //   );
-    
-//   //   showNotification(`Certificate ${cert.id} created successfully!`, 'success');
-//   //   setCertForm({ holderName: '', title: '', file: null });
-//   // };
-//   const handleCreateCertificate = async (e) => {
-//   e.preventDefault();
-
-//   if (!UserModule.authorize(currentUser, 'create_certificate')) {
-//     showNotification('Unauthorized action', 'error');
-//     return;
-//   }
-
-//   try {
-//     const cert = await CertificateModule.createCertificate(
-//       currentUser.id,
-//       certForm.holderName,
-//       certForm.title,
-//       certForm.file
-//     );
-
-//     showNotification(`Certificate created successfully!`, 'success');
-
-//     setCertForm({ holderName: '', title: '', file: null });
-
-//   } catch (error) {
-//     console.error(error);
-//     showNotification('Failed to create certificate', 'error');
-//   }
-// };
-
-
-//   const handleVerify = (e) => {
-//     e.preventDefault();
-//     const result = VerificationModule.verifyCertificate(verifyID, currentUser.id);
-//     setVerificationResult(result);
-//     setVerifyID('');
-//   };
-
-//   const handleRevoke = (e) => {
-//     e.preventDefault();
-//     const result = RevocationModule.revokeCertificate(
-//       revokeForm.certID,
-//       currentUser.id,
-//       revokeForm.reason
-//     );
-    
-//     showNotification(result.message, result.success ? 'success' : 'error');
-//     if (result.success) {
-//       setRevokeForm({ certID: '', reason: '' });
-//     }
-//   };
-
-//   const getUserCertificates = () => {
-//     if (currentUser.role === 'issuer') {
-//       return DATABASE.certificates.filter(cert => cert.issuerID === currentUser.id);
-//     }
-//     return DATABASE.certificates.filter(cert => cert.holderName === currentUser.name);
-//   };
-
-//   // Login Screen
-//   if (!currentUser) {
-//     return (
-//       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
-//         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-//           <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-pulse"></div>
-//           <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
-//         </div>
-        
-//         <div className="w-full max-w-md relative z-10">
-//           <div className="text-center mb-8">
-//             {/* <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-purple-500 to-blue-500 rounded-2xl mb-4 shadow-2xl">
-//               <Shield className="w-10 h-10 text-white" />
-//             </div> */}
-//             <h1 className="text-4xl font-bold text-white mb-2" style={{ fontFamily: 'Georgia, serif' }}>
-//               ZeroID
-//             </h1>
-//             <p className="text-purple-200">Secure Certificate Management System</p>
-//           </div>
-          
-//           <div className="bg-white/10 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-white/20">
-//             <form onSubmit={handleLogin} className="space-y-6">
-//               <div>
-//                 <label className="block text-sm font-medium text-purple-200 mb-2">Username</label>
-//                 <input
-//                   type="text"
-//                   value={loginForm.username}
-//                   onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })}
-//                   className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-purple-300/50 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all"
-//                   placeholder="Enter username"
-//                   required
-//                 />
-//               </div>
-              
-//               <div>
-//                 <label className="block text-sm font-medium text-purple-200 mb-2">Password</label>
-//                 <input
-//                   type="password"
-//                   value={loginForm.password}
-//                   onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
-//                   className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-purple-300/50 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all"
-//                   placeholder="Enter password"
-//                   required
-//                 />
-//               </div>
-              
-//               <button
-//                 type="submit"
-//                 className="w-full py-3 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-xl font-semibold hover:from-purple-600 hover:to-blue-600 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
-//               >
-//                 Sign In
-//               </button>
-//             </form>
-            
-//             {/* <div className="mt-6 pt-6 border-t border-white/10">
-//               <p className="text-xs text-purple-300 mb-2">Demo Accounts:</p>
-//               <div className="space-y-1 text-xs text-purple-200">
-//                 <p>• Issuer: issuer1 / pass123</p>
-//                 <p>• Holder: holder1 / pass123</p>
-//                 <p>• Verifier: verifier1 / pass123</p>
-//               </div> */}
-//             {/* </div> */}
-//           </div>
-//         </div>
-//       </div>
-//     );
-//   }
-
-//   // Main Dashboard
-//   return (
-//     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-//       {/* Notification */}
-//       {notification && (
-//         <div className={`fixed top-4 right-4 z-50 px-6 py-4 rounded-xl shadow-2xl border-2 animate-slideIn ${
-//           notification.type === 'success' ? 'bg-green-50 border-green-500 text-green-800' :
-//           notification.type === 'error' ? 'bg-red-50 border-red-500 text-red-800' :
-//           'bg-blue-50 border-blue-500 text-blue-800'
-//         }`}>
-//           {notification.message}
-//         </div>
-//       )}
-      
-//       {/* Header */}
-//       <header className="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-40">
-//         <div className="max-w-7xl mx-auto px-6 py-4">
-//           <div className="flex items-center justify-between">
-//             <div className="flex items-center space-x-4">
-//               {/* <div className="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-purple-500 to-blue-500 rounded-xl shadow-lg">
-//                 <Shield className="w-6 h-6 text-white" />
-//               </div> */}
-//               <div>
-//                 <h1 className="text-2xl font-bold text-slate-800" style={{ fontFamily: 'Georgia, serif' }}>
-//                   ZeroID
-//                 </h1>
-//                 <p className="text-sm text-slate-500">Certificate Management Platform</p>
-//               </div>
-//             </div>
-            
-//             <div className="flex items-center space-x-4">
-//               <div className="text-right">
-//                 <p className="text-sm font-semibold text-slate-800">{currentUser.name}</p>
-//                 <p className="text-xs text-slate-500 capitalize">{currentUser.role}</p>
-//               </div>
-//               <button
-//                 onClick={handleLogout}
-//                 className="flex items-center space-x-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors"
-//               >
-//                 <LogOut className="w-4 h-4" />
-//                 <span className="text-sm font-medium">Logout</span>
-//               </button>
-//             </div>
-//           </div>
-//         </div>
-//       </header>
-
-//       {/* Navigation Tabs */}
-//       <div className="bg-white border-b border-slate-200">
-//         <div className="max-w-7xl mx-auto px-6">
-//           <nav className="flex space-x-1">
-//             <button
-//               onClick={() => setActiveTab('dashboard')}
-//               className={`px-6 py-4 text-sm font-medium transition-all ${
-//                 activeTab === 'dashboard'
-//                   ? 'text-purple-600 border-b-2 border-purple-600'
-//                   : 'text-slate-600 hover:text-slate-800'
-//               }`}
-//             >
-//               Dashboard
-//             </button>
-            
-//             {currentUser.role === 'issuer' && (
-//               <>
-//                 <button
-//                   onClick={() => setActiveTab('create')}
-//                   className={`px-6 py-4 text-sm font-medium transition-all ${
-//                     activeTab === 'create'
-//                       ? 'text-purple-600 border-b-2 border-purple-600'
-//                       : 'text-slate-600 hover:text-slate-800'
-//                   }`}
-//                 >
-//                   Create Certificate
-//                 </button>
-//                 <button
-//                   onClick={() => setActiveTab('revoke')}
-//                   className={`px-6 py-4 text-sm font-medium transition-all ${
-//                     activeTab === 'revoke'
-//                       ? 'text-purple-600 border-b-2 border-purple-600'
-//                       : 'text-slate-600 hover:text-slate-800'
-//                   }`}
-//                 >
-//                   Revoke
-//                 </button>
-//               </>
-//             )}
-            
-//             {currentUser.role === 'verifier' && (
-//               <button
-//                 onClick={() => setActiveTab('verify')}
-//                 className={`px-6 py-4 text-sm font-medium transition-all ${
-//                   activeTab === 'verify'
-//                     ? 'text-purple-600 border-b-2 border-purple-600'
-//                     : 'text-slate-600 hover:text-slate-800'
-//                 }`}
-//               >
-//                 Verify Certificate
-//               </button>
-//             )}
-            
-//             <button
-//               onClick={() => setActiveTab('logs')}
-//               className={`px-6 py-4 text-sm font-medium transition-all ${
-//                 activeTab === 'logs'
-//                   ? 'text-purple-600 border-b-2 border-purple-600'
-//                   : 'text-slate-600 hover:text-slate-800'
-//               }`}
-//             >
-//               Audit Logs
-//             </button>
-//           </nav>
-//         </div>
-//       </div>
-
-//       {/* Main Content */}
-//       <main className="max-w-7xl mx-auto px-6 py-8">
-        
-//         {/* Dashboard Tab */}
-//         {activeTab === 'dashboard' && (
-//           <div className="space-y-6">
-//             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-//               <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-//                 <div className="flex items-center justify-between mb-4">
-//                   <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
-//                     <FileText className="w-6 h-6 text-purple-600" />
-//                   </div>
-//                   <span className="text-3xl font-bold text-purple-600">{DATABASE.certificates.length}</span>
-//                 </div>
-//                 <h3 className="text-sm font-medium text-slate-600">Total Certificates</h3>
-//               </div>
-              
-//               <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-//                 <div className="flex items-center justify-between mb-4">
-//                   <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-//                     <CheckCircle className="w-6 h-6 text-green-600" />
-//                   </div>
-//                   <span className="text-3xl font-bold text-green-600">
-//                     {DATABASE.certificates.filter(c => c.status === 'valid').length}
-//                   </span>
-//                 </div>
-//                 <h3 className="text-sm font-medium text-slate-600">Valid Certificates</h3>
-//               </div>
-              
-//               <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-//                 <div className="flex items-center justify-between mb-4">
-//                   <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
-//                     <XCircle className="w-6 h-6 text-red-600" />
-//                   </div>
-//                   <span className="text-3xl font-bold text-red-600">
-//                     {DATABASE.certificates.filter(c => c.status === 'revoked').length}
-//                   </span>
-//                 </div>
-//                 <h3 className="text-sm font-medium text-slate-600">Revoked Certificates</h3>
-//               </div>
-//             </div>
-
-//             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
-//               <div className="px-6 py-4 border-b border-slate-200">
-//                 <h2 className="text-lg font-semibold text-slate-800">
-//                   {currentUser.role === 'issuer' ? 'My Issued Certificates' : 'My Certificates'}
-//                 </h2>
-//               </div>
-              
-//               <div className="p-6">
-//                 {getUserCertificates().length === 0 ? (
-//                   <div className="text-center py-12">
-//                     <FileText className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-//                     <p className="text-slate-500">No certificates found</p>
-//                   </div>
-//                 ) : (
-//                   <div className="space-y-3">
-//                     {getUserCertificates().map(cert => (
-//                       <div key={cert.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200 hover:border-purple-300 transition-colors">
-//                         <div className="flex-1">
-//                           <div className="flex items-center space-x-3 mb-2">
-//                             <h3 className="font-semibold text-slate-800">{cert.title}</h3>
-//                             <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-//                               cert.status === 'valid'
-//                                 ? 'bg-green-100 text-green-700'
-//                                 : 'bg-red-100 text-red-700'
-//                             }`}>
-//                               {cert.status}
-//                             </span>
-//                           </div>
-//                           <p className="text-sm text-slate-600">Holder: {cert.holderName}</p>
-//                           <div className="flex items-center space-x-4 mt-2 text-xs text-slate-500">
-//                             <span>ID: {cert.id}</span>
-//                             <span>Issued: {new Date(cert.issuedDate).toLocaleDateString()}</span>
-//                           </div>
-//                         </div>
-//                         <div className="flex items-center space-x-2">
-//                           <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-//                             <Shield className="w-5 h-5 text-purple-600" />
-//                           </div>
-//                         </div>
-//                       </div>
-//                     ))}
-//                   </div>
-//                 )}
-//               </div>
-//             </div>
-//           </div>
-//         )}
-
-//         {/* Create Certificate Tab */}
-//         {activeTab === 'create' && currentUser.role === 'issuer' && (
-//           <div className="max-w-2xl">
-//             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
-//               <div className="px-6 py-4 border-b border-slate-200">
-//                 <h2 className="text-lg font-semibold text-slate-800">Issue New Certificate</h2>
-//               </div>
-              
-//               <form onSubmit={handleCreateCertificate} className="p-6 space-y-6">
-//                 <div>
-//                   <label className="block text-sm font-medium text-slate-700 mb-2">
-//                     Certificate Holder Name
-//                   </label>
-//                   <input
-//                     type="text"
-//                     value={certForm.holderName}
-//                     onChange={(e) => setCertForm({ ...certForm, holderName: e.target.value })}
-//                     className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-//                     placeholder="John Doe"
-//                     required
-//                   />
-//                 </div>
-                
-//                 <div>
-//                   <label className="block text-sm font-medium text-slate-700 mb-2">
-//                     Certificate Title
-//                   </label>
-//                   <input
-//                     type="text"
-//                     value={certForm.title}
-//                     onChange={(e) => setCertForm({ ...certForm, title: e.target.value })}
-//                     className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-//                     placeholder="Bachelor of Science in Computer Science"
-//                     required
-//                   />
-//                 </div>
-                
-//                 <div>
-//                   <label className="block text-sm font-medium text-slate-700 mb-2">
-//                     Upload Certificate File
-//                   </label>
-//                   <div className="relative">
-//                     <input
-//                       type="file"
-//                       onChange={(e) => setCertForm({ ...certForm, file: e.target.files[0] })}
-//                       className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-//                       accept=".pdf,.jpg,.jpeg,.png"
-//                       required
-//                     />
-//                   </div>
-//                   <p className="text-xs text-slate-500 mt-2">Supported formats: PDF, JPG, PNG</p>
-//                 </div>
-                
-//                 <button
-//                   type="submit"
-//                   className="w-full py-3 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-xl font-semibold hover:from-purple-600 hover:to-blue-600 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center justify-center space-x-2"
-//                 >
-//                   <Upload className="w-5 h-5" />
-//                   <span>Issue Certificate</span>
-//                 </button>
-//               </form>
-//             </div>
-//           </div>
-//         )}
-
-//         {/* Verify Certificate Tab */}
-//         {activeTab === 'verify' && (
-//           <div className="max-w-2xl">
-//             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
-//               <div className="px-6 py-4 border-b border-slate-200">
-//                 <h2 className="text-lg font-semibold text-slate-800">Verify Certificate</h2>
-//               </div>
-              
-//               <form onSubmit={handleVerify} className="p-6 space-y-6">
-//                 <div>
-//                   <label className="block text-sm font-medium text-slate-700 mb-2">
-//                     Certificate ID
-//                   </label>
-//                   <input
-//                     type="text"
-//                     value={verifyID}
-//                     onChange={(e) => setVerifyID(e.target.value)}
-//                     className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-//                     placeholder="CERT-XXXXXXXXXX"
-//                     required
-//                   />
-//                 </div>
-                
-//                 <button
-//                   type="submit"
-//                   className="w-full py-3 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-xl font-semibold hover:from-purple-600 hover:to-blue-600 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center justify-center space-x-2"
-//                 >
-//                   <Eye className="w-5 h-5" />
-//                   <span>Verify Certificate</span>
-//                 </button>
-//               </form>
-              
-//               {verificationResult && (
-//                 <div className="px-6 pb-6">
-//                   <div className={`p-6 rounded-xl border-2 ${
-//                     verificationResult.valid
-//                       ? 'bg-green-50 border-green-500'
-//                       : 'bg-red-50 border-red-500'
-//                   }`}>
-//                     <div className="flex items-center space-x-3 mb-4">
-//                       {verificationResult.valid ? (
-//                         <CheckCircle className="w-8 h-8 text-green-600" />
-//                       ) : (
-//                         <XCircle className="w-8 h-8 text-red-600" />
-//                       )}
-//                       <h3 className={`text-xl font-bold ${
-//                         verificationResult.valid ? 'text-green-800' : 'text-red-800'
-//                       }`}>
-//                         {verificationResult.valid ? 'Certificate Valid' : 'Certificate Invalid'}
-//                       </h3>
-//                     </div>
-                    
-//                     {verificationResult.certificate && (
-//                       <div className="space-y-2 text-sm">
-//                         <p className={verificationResult.valid ? 'text-green-700' : 'text-red-700'}>
-//                           <strong>Title:</strong> {verificationResult.certificate.title}
-//                         </p>
-//                         <p className={verificationResult.valid ? 'text-green-700' : 'text-red-700'}>
-//                           <strong>Holder:</strong> {verificationResult.certificate.holderName}
-//                         </p>
-//                         <p className={verificationResult.valid ? 'text-green-700' : 'text-red-700'}>
-//                           <strong>Issued:</strong> {new Date(verificationResult.certificate.issuedDate).toLocaleDateString()}
-//                         </p>
-//                         <p className={verificationResult.valid ? 'text-green-700' : 'text-red-700'}>
-//                           <strong>Hash Match:</strong> {verificationResult.hashMatch ? 'Yes' : 'No'}
-//                         </p>
-//                         <p className={verificationResult.valid ? 'text-green-700' : 'text-red-700'}>
-//                           <strong>Status:</strong> {verificationResult.isRevoked ? 'Revoked' : 'Active'}
-//                         </p>
-//                       </div>
-//                     )}
-                    
-//                     {!verificationResult.certificate && (
-//                       <p className="text-red-700">{verificationResult.reason}</p>
-//                     )}
-//                   </div>
-//                 </div>
-//               )}
-//             </div>
-//           </div>
-//         )}
-
-//         {/* Revoke Certificate Tab */}
-//         {activeTab === 'revoke' && currentUser.role === 'issuer' && (
-//           <div className="max-w-2xl">
-//             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
-//               <div className="px-6 py-4 border-b border-slate-200 bg-red-50">
-//                 <div className="flex items-center space-x-3">
-//                   <AlertTriangle className="w-6 h-6 text-red-600" />
-//                   <h2 className="text-lg font-semibold text-red-800">Revoke Certificate</h2>
-//                 </div>
-//               </div>
-              
-//               <form onSubmit={handleRevoke} className="p-6 space-y-6">
-//                 <div>
-//                   <label className="block text-sm font-medium text-slate-700 mb-2">
-//                     Certificate ID
-//                   </label>
-//                   <input
-//                     type="text"
-//                     value={revokeForm.certID}
-//                     onChange={(e) => setRevokeForm({ ...revokeForm, certID: e.target.value })}
-//                     className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
-//                     placeholder="CERT-XXXXXXXXXX"
-//                     required
-//                   />
-//                 </div>
-                
-//                 <div>
-//                   <label className="block text-sm font-medium text-slate-700 mb-2">
-//                     Revocation Reason
-//                   </label>
-//                   <textarea
-//                     value={revokeForm.reason}
-//                     onChange={(e) => setRevokeForm({ ...revokeForm, reason: e.target.value })}
-//                     className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent h-24"
-//                     placeholder="Explain why this certificate is being revoked..."
-//                     required
-//                   />
-//                 </div>
-                
-//                 <button
-//                   type="submit"
-//                   className="w-full py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl font-semibold hover:from-red-600 hover:to-red-700 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center justify-center space-x-2"
-//                 >
-//                   <XCircle className="w-5 h-5" />
-//                   <span>Revoke Certificate</span>
-//                 </button>
-//               </form>
-//             </div>
-//           </div>
-//         )}
-
-//         {/* Audit Logs Tab */}
-//         {activeTab === 'logs' && (
-//           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
-//             <div className="px-6 py-4 border-b border-slate-200">
-//               <h2 className="text-lg font-semibold text-slate-800">Audit Trail</h2>
-//             </div>
-            
-//             <div className="p-6">
-//               {AuditModule.getLogs().length === 0 ? (
-//                 <div className="text-center py-12">
-//                   <FileText className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-//                   <p className="text-slate-500">No audit logs available</p>
-//                 </div>
-//               ) : (
-//                 <div className="space-y-3 max-h-96 overflow-y-auto">
-//                   {AuditModule.getLogs().map(log => (
-//                     <div key={log.id} className="p-4 bg-slate-50 rounded-xl border border-slate-200">
-//                       <div className="flex items-start justify-between mb-2">
-//                         <div className="flex items-center space-x-3">
-//                           <div className={`w-2 h-2 rounded-full ${
-//                             log.action.includes('issued') ? 'bg-green-500' :
-//                             log.action.includes('revoked') ? 'bg-red-500' :
-//                             log.action.includes('verified') || log.action.includes('verification') ? 'bg-blue-500' :
-//                             'bg-slate-400'
-//                           }`}></div>
-//                           <span className="font-medium text-slate-800 capitalize">
-//                             {log.action.replace(/_/g, ' ')}
-//                           </span>
-//                         </div>
-//                         <span className="text-xs text-slate-500">
-//                           {new Date(log.timestamp).toLocaleString()}
-//                         </span>
-//                       </div>
-//                       {log.certID && (
-//                         <p className="text-sm text-slate-600 ml-5">
-//                           Certificate: <span className="font-mono text-xs">{log.certID}</span>
-//                         </p>
-//                       )}
-//                       {log.details && Object.keys(log.details).length > 0 && (
-//                         <div className="text-xs text-slate-500 ml-5 mt-1">
-//                           {JSON.stringify(log.details, null, 2).slice(0, 100)}...
-//                         </div>
-//                       )}
-//                     </div>
-//                   ))}
-//                 </div>
-//               )}
-//             </div>
-//           </div>
-//         )}
-//       </main>
-      
-//       <style>{`
-//         @keyframes slideIn {
-//           from {
-//             transform: translateX(400px);
-//             opacity: 0;
-//           }
-//           to {
-//             transform: translateX(0);
-//             opacity: 1;
-//           }
-//         }
-        
-//         .animate-slideIn {
-//           animation: slideIn 0.3s ease-out;
-//         }
-//       `}</style>
-//     </div>
-//   );
-// }
-
-
-
 import React, { useState, useEffect } from "react";
 import {
-  Upload,
-  CheckCircle,
-  XCircle,
-  Shield,
-  FileText,
-  Eye,
-  AlertTriangle,
-  LogOut,
+  CheckCircle, XCircle, Shield, LogOut, Loader2,
+  AlertTriangle, ExternalLink, RefreshCw, Copy,
 } from "lucide-react";
-
-/* ================================
-   API CONFIG
-================================ */
 
 const API_BASE = "http://127.0.0.1:8000";
 
 async function api(url, method = "GET", body = null, auth = true) {
   const headers = {};
-
   if (auth) {
     const token = localStorage.getItem("access");
     if (token) headers.Authorization = `Bearer ${token}`;
   }
-
   const options = { method, headers };
-
   if (body) {
-    if (body instanceof FormData) {
-      options.body = body;
-    } else {
-      headers["Content-Type"] = "application/json";
-      options.body = JSON.stringify(body);
-    }
+    if (body instanceof FormData) options.body = body;
+    else { headers["Content-Type"] = "application/json"; options.body = JSON.stringify(body); }
   }
-
-  const response = await fetch(API_BASE + url, options);
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.log("Backend error:", errorText);
-    throw new Error("API error");
-  }
-
-  return response.json();
+  const res = await fetch(API_BASE + url, options);
+  if (!res.ok) { const t = await res.text(); throw new Error(t || "API Error"); }
+  return res.json();
 }
 
-/* ================================
-   CERTIFICATE MODULE (BACKEND)
-================================ */
-
-const CertificateModule = {
-  createCertificate: async (holderName, title, file) => {
-    const formData = new FormData();
-    formData.append("holder_name", holderName);
-    formData.append("title", title);
-    formData.append("certificate_file", file);
-
-    return await api("/certificates/", "POST", formData);
+const CertAPI = {
+  list:   ()              => api("/certificates/"),
+  create: (holderName, title, file) => {
+    const fd = new FormData();
+    fd.append("holder_name", holderName);
+    fd.append("title", title);
+    fd.append("certificate_file", file);
+    return api("/certificates/", "POST", fd);
   },
-
-  listCertificates: async () => {
-    return await api("/certificates/");
-  },
+  revoke: (id, reason)   => api("/revoke/", "POST", { certificate_id: id, reason: reason || "Revoked by issuer" }),
+  verify: (id)           => api("/verify/", "POST", { certificate_id: id }, false),
 };
 
-/* ================================
-   MAIN COMPONENT
-================================ */
+/* ── small helpers ── */
+function Badge({ valid, revoked }) {
+  if (valid)    return <span style={styles.badgeGreen}>✓ Valid</span>;
+  if (revoked)  return <span style={styles.badgeRed}>✕ Revoked</span>;
+  return              <span style={styles.badgeYellow}>⚠ Invalid</span>;
+}
 
-export default function CertificateManagementSystem() {
-  const [currentUser, setCurrentUser] = useState(null);
-  const [loginForm, setLoginForm] = useState({ username: "", password: "" });
-  const [certificates, setCertificates] = useState([]);
-  const [activeTab, setActiveTab] = useState("dashboard");
-  const [certForm, setCertForm] = useState({
-    holderName: "",
-    title: "",
-    file: null,
-  });
-  const [notification, setNotification] = useState(null);
+function CopyBtn({ text }) {
+  const [ok, setOk] = useState(false);
+  return (
+    <button style={styles.copyBtn} title="Copy"
+      onClick={() => { navigator.clipboard.writeText(text); setOk(true); setTimeout(()=>setOk(false),1500); }}>
+      {ok ? <CheckCircle size={12} color="#16a34a"/> : <Copy size={12}/>}
+    </button>
+  );
+}
 
-  /* ================================
-     LOAD CERTIFICATES AFTER LOGIN
-  ================================= */
+/* ── styles object (plain CSS-in-JS, no Tailwind needed) ── */
+const C = {
+  bg:       "#f8fafc",
+  white:    "#ffffff",
+  border:   "#e2e8f0",
+  text:     "#1e293b",
+  muted:    "#64748b",
+  accent:   "#4f46e5",
+  green:    "#16a34a",
+  red:      "#dc2626",
+  yellow:   "#d97706",
+  greenBg:  "#f0fdf4",
+  redBg:    "#fef2f2",
+  yellowBg: "#fffbeb",
+};
+
+const styles = {
+  page:       { minHeight:"100vh", background:C.bg, fontFamily:"system-ui,sans-serif", color:C.text },
+  header:     { background:C.white, borderBottom:`1px solid ${C.border}`, padding:"14px 24px", display:"flex", alignItems:"center", justifyContent:"space-between" },
+  headerLeft: { display:"flex", alignItems:"center", gap:10 },
+  logo:       { fontWeight:700, fontSize:18, color:C.text, letterSpacing:"-0.02em" },
+  roleTag:    { fontSize:12, padding:"3px 10px", borderRadius:20, background:"#eef2ff", color:C.accent, fontWeight:600, textTransform:"capitalize" },
+  logoutBtn:  { display:"flex", alignItems:"center", gap:6, fontSize:13, color:C.muted, background:"none", border:"none", cursor:"pointer", padding:"6px 10px", borderRadius:8 },
+  main:       { maxWidth:820, margin:"0 auto", padding:"28px 20px" },
+  card:       { background:C.white, border:`1px solid ${C.border}`, borderRadius:12, padding:24, marginBottom:20 },
+  cardTitle:  { fontSize:16, fontWeight:600, marginBottom:16, color:C.text },
+  label:      { fontSize:12, fontWeight:600, color:C.muted, marginBottom:5, display:"block", textTransform:"uppercase", letterSpacing:".04em" },
+  input:      { width:"100%", border:`1px solid ${C.border}`, borderRadius:8, padding:"9px 12px", fontSize:14, outline:"none", color:C.text, background:C.white, boxSizing:"border-box" },
+  row:        { display:"grid", gridTemplateColumns:"1fr 1fr", gap:14, marginBottom:14 },
+  btn:        { display:"inline-flex", alignItems:"center", gap:7, padding:"9px 18px", borderRadius:8, fontSize:14, fontWeight:500, cursor:"pointer", border:"none", transition:"opacity .15s" },
+  btnPrimary: { background:C.accent, color:"#fff" },
+  btnDanger:  { background:"none", color:C.red, border:`1px solid #fca5a5` },
+  btnGhost:   { background:"none", color:C.muted, border:`1px solid ${C.border}` },
+  btnCyan:    { background:"#0284c7", color:"#fff" },
+  btnDis:     { opacity:.5, cursor:"not-allowed" },
+  certCard:   { border:`1px solid ${C.border}`, borderRadius:10, padding:16, marginBottom:10, background:C.white },
+  certCardRev:{ border:"1px solid #fca5a5", borderRadius:10, padding:16, marginBottom:10, background:C.redBg },
+  badgeGreen: { fontSize:12, fontWeight:600, padding:"2px 10px", borderRadius:20, background:C.greenBg, color:C.green, border:`1px solid #bbf7d0` },
+  badgeRed:   { fontSize:12, fontWeight:600, padding:"2px 10px", borderRadius:20, background:C.redBg,   color:C.red,   border:`1px solid #fca5a5` },
+  badgeYellow:{ fontSize:12, fontWeight:600, padding:"2px 10px", borderRadius:20, background:C.yellowBg,color:C.yellow,border:`1px solid #fde68a` },
+  badgeCyan:  { fontSize:11, padding:"2px 8px", borderRadius:20, background:"#e0f2fe", color:"#0284c7", border:"1px solid #bae6fd" },
+  badgeGray:  { fontSize:11, padding:"2px 8px", borderRadius:20, background:"#f1f5f9", color:C.muted,   border:`1px solid ${C.border}` },
+  link:       { display:"inline-flex", alignItems:"center", gap:4, fontSize:12, color:C.accent, textDecoration:"none" },
+  mono:       { fontFamily:"monospace", fontSize:12, color:C.muted },
+  divider:    { height:1, background:C.border, margin:"14px 0" },
+  checkRow:   { display:"flex", alignItems:"center", gap:8, fontSize:13, padding:"5px 0" },
+  filterRow:  { display:"flex", gap:6 },
+  pill:       { fontSize:13, padding:"5px 14px", borderRadius:20, border:"none", cursor:"pointer", fontWeight:500 },
+  pillOn:     { background:C.accent, color:"#fff" },
+  pillOff:    { background:"#f1f5f9", color:C.muted },
+  stats:      { display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:12, marginBottom:20 },
+  statBox:    { background:C.white, border:`1px solid ${C.border}`, borderRadius:10, padding:"14px 18px", textAlign:"center" },
+  statNum:    { fontSize:26, fontWeight:700, color:C.text },
+  statLbl:    { fontSize:12, color:C.muted, marginTop:2 },
+  copyBtn:    { background:"none", border:"none", cursor:"pointer", color:C.muted, padding:"0 2px", lineHeight:1 },
+  toast:      { position:"fixed", top:16, right:16, zIndex:9999, padding:"11px 18px", borderRadius:10, fontSize:13, fontWeight:500, display:"flex", alignItems:"center", gap:8, boxShadow:"0 4px 16px rgba(0,0,0,.1)" },
+  toastOk:    { background:C.greenBg, color:C.green, border:`1px solid #bbf7d0` },
+  toastErr:   { background:C.redBg,   color:C.red,   border:`1px solid #fca5a5` },
+};
+
+/* ════════════════════════════════
+   MAIN
+════════════════════════════════ */
+export default function App() {
+  const [user, setUser]           = useState(null);
+  const [form, setForm]           = useState({ username:"", password:"" });
+  const [certs, setCerts]         = useState([]);
+  const [newCert, setNewCert]     = useState({ holderName:"", title:"", file:null });
+  const [issuing, setIssuing]     = useState(false);
+  const [revoking, setRevoking]   = useState(null);
+  const [filter, setFilter]       = useState("all");
+  const [loading, setLoading]     = useState(false);
+  const [vid, setVid]             = useState("");
+  const [vResult, setVResult]     = useState(null);
+  const [verifying, setVerifying] = useState(false);
+  const [toast, setToast]         = useState(null);
 
   useEffect(() => {
-    if (currentUser) {
-      loadCertificates();
-    }
-  }, [currentUser]);
+    if (user && user.role !== "verifier") loadCerts();
+  }, [user]);
 
-  const loadCertificates = async () => {
-    try {
-      // const data = await CertificateModule.listCertificates();
-      // setCertificates(data);
-      const data = await CertificateModule.listCertificates();
-      setCertificates(data.results || []);
-    } catch (err) {
-      console.error(err);
-    }
+  const notify = (msg, type="success") => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3500);
   };
 
-  /* ================================
-     LOGIN
-  ================================= */
+  const loadCerts = async () => {
+    setLoading(true);
+    try { const d = await CertAPI.list(); setCerts(d.results || d); }
+    catch { notify("Failed to load certificates","error"); }
+    finally { setLoading(false); }
+  };
 
-  const handleLogin = async (e) => {
+  /* login */
+  const login = async e => {
     e.preventDefault();
-
     try {
-      const response = await fetch(`${API_BASE}/auth/login/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(loginForm),
+      const res = await fetch(`${API_BASE}/auth/login/`, {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify(form),
       });
-
-      if (!response.ok) throw new Error("Invalid credentials");
-
-      const data = await response.json();
-
-      localStorage.setItem("access", data.tokens.access);
-      localStorage.setItem("refresh", data.tokens.refresh);
-
-      setCurrentUser(data.user);
-      showNotification("Login successful!", "success");
-    } catch (error) {
-      showNotification("Login failed", "error");
-    }
+      if (!res.ok) { notify("Invalid credentials","error"); return; }
+      const d = await res.json();
+      localStorage.setItem("access", d.tokens.access);
+      localStorage.setItem("refresh", d.tokens.refresh);
+      setUser(d.user);
+    } catch { notify("Login failed","error"); }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("access");
-    localStorage.removeItem("refresh");
-    setCurrentUser(null);
-    setCertificates([]);
-  };
+  const logout = () => { localStorage.clear(); setUser(null); setCerts([]); setVResult(null); };
 
-  /* ================================
-     CREATE CERTIFICATE
-  ================================= */
-
-  const handleCreateCertificate = async (e) => {
+  /* issue */
+  const issue = async e => {
     e.preventDefault();
-
+    if (!newCert.holderName || !newCert.title || !newCert.file) { notify("All fields required","error"); return; }
+    setIssuing(true);
     try {
-      const newCert = await CertificateModule.createCertificate(
-        certForm.holderName,
-        certForm.title,
-        certForm.file
-      );
-
-      setCertificates((prev) => [newCert, ...prev]);
-
-      showNotification("Certificate created successfully!", "success");
-      setCertForm({ holderName: "", title: "", file: null });
-    } catch (error) {
-      showNotification("Failed to create certificate", "error");
-    }
+      await CertAPI.create(newCert.holderName, newCert.title, newCert.file);
+      notify("Certificate issued & anchored to blockchain");
+      loadCerts();
+      setNewCert({ holderName:"", title:"", file:null });
+    } catch { notify("Issuance failed","error"); }
+    finally { setIssuing(false); }
   };
 
-  /* ================================
-     NOTIFICATION
-  ================================= */
-
-  const showNotification = (message, type = "info") => {
-    setNotification({ message, type });
-    setTimeout(() => setNotification(null), 3000);
+  /* revoke */
+  const revoke = async (id, title) => {
+    if (!window.confirm(`Revoke "${title}"? This cannot be undone.`)) return;
+    setRevoking(id);
+    try { await CertAPI.revoke(id); notify("Certificate revoked"); loadCerts(); }
+    catch { notify("Revocation failed","error"); }
+    finally { setRevoking(null); }
   };
 
-  /* ================================
-     LOGIN SCREEN
-  ================================= */
+  /* verify */
+  const verify = async () => {
+    if (!vid.trim()) { notify("Enter a certificate ID","error"); return; }
+    setVerifying(true); setVResult(null);
+    try { setVResult(await CertAPI.verify(vid.trim())); }
+    catch { setVResult({ valid:false, failure_reason:"Network error — server unreachable" }); }
+    finally { setVerifying(false); }
+  };
 
-  if (!currentUser) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-900">
-        <form
-          onSubmit={handleLogin}
-          className="bg-white p-8 rounded-xl w-96 space-y-4"
-        >
-          <h2 className="text-xl font-bold text-center">ZeroID Login</h2>
+  const filtered = certs.filter(c => filter === "all" || c.status === filter);
 
-          <input
-            type="text"
-            placeholder="Username"
-            value={loginForm.username}
-            onChange={(e) =>
-              setLoginForm({ ...loginForm, username: e.target.value })
-            }
-            className="w-full border p-2 rounded"
-            required
-          />
-
-          <input
-            type="password"
-            placeholder="Password"
-            value={loginForm.password}
-            onChange={(e) =>
-              setLoginForm({ ...loginForm, password: e.target.value })
-            }
-            className="w-full border p-2 rounded"
-            required
-          />
-
-          <button className="w-full bg-purple-600 text-white py-2 rounded">
-            Login
+  /* ── LOGIN ── */
+  if (!user) return (
+    <div style={{ ...styles.page, display:"flex", alignItems:"center", justifyContent:"center" }}>
+      <div style={{ ...styles.card, width:360, margin:0 }}>
+        <div style={{ textAlign:"center", marginBottom:24 }}>
+          <Shield size={32} color={C.accent} style={{ marginBottom:10 }}/>
+          <div style={styles.logo}>ZeroID</div>
+          <div style={{ fontSize:13, color:C.muted, marginTop:4 }}>Blockchain Certificate System</div>
+        </div>
+        <form onSubmit={login} style={{ display:"flex", flexDirection:"column", gap:14 }}>
+          <div>
+            <label style={styles.label}>Username</label>
+            <input style={styles.input} placeholder="Username" value={form.username}
+              onChange={e => setForm({...form, username:e.target.value})}/>
+          </div>
+          <div>
+            <label style={styles.label}>Password</label>
+            <input style={styles.input} type="password" placeholder="Password" value={form.password}
+              onChange={e => setForm({...form, password:e.target.value})}/>
+          </div>
+          <button type="submit" style={{...styles.btn, ...styles.btnPrimary, justifyContent:"center", marginTop:4}}>
+            Sign In
           </button>
         </form>
       </div>
-    );
-  }
+    </div>
+  );
 
-  /* ================================
-     MAIN DASHBOARD
-  ================================= */
-
+  /* ── DASHBOARD ── */
   return (
-    <div className="min-h-screen bg-slate-100">
-
-      {notification && (
-        <div className="fixed top-4 right-4 bg-white p-4 shadow rounded">
-          {notification.message}
+    <div style={styles.page}>
+      {/* Toast */}
+      {toast && (
+        <div style={{ ...styles.toast, ...(toast.type==="error" ? styles.toastErr : styles.toastOk) }}>
+          {toast.type==="error" ? <XCircle size={15}/> : <CheckCircle size={15}/>}
+          {toast.msg}
         </div>
       )}
 
-      {/* HEADER */}
-      <header className="bg-white p-4 flex justify-between shadow">
-        <h1 className="font-bold text-xl">ZeroID</h1>
-        <button onClick={handleLogout} className="flex items-center gap-2">
-          <LogOut size={16} /> Logout
-        </button>
+      {/* Header */}
+      <header style={styles.header}>
+        <div style={styles.headerLeft}>
+          <Shield size={20} color={C.accent}/>
+          <span style={styles.logo}>ZeroID</span>
+          <span style={styles.roleTag}>{user.role}</span>
+        </div>
+        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+          <span style={{ fontSize:13, color:C.muted }}>{user.username}</span>
+          <button style={styles.logoutBtn} onClick={logout}>
+            <LogOut size={14}/> Logout
+          </button>
+        </div>
       </header>
 
-      <main className="p-8 space-y-8">
+      <div style={styles.main}>
 
-        {/* STATS */}
-        <div className="grid grid-cols-3 gap-6">
-          <div className="bg-white p-6 rounded shadow">
-            <p className="text-sm">Total Certificates</p>
-            <p className="text-2xl font-bold">{certificates.length}</p>
+        {/* ═══ ISSUER ═══ */}
+        {user.role === "issuer" && <>
+
+          {/* Stats */}
+          <div style={styles.stats}>
+            <div style={styles.statBox}>
+              <div style={styles.statNum}>{certs.length}</div>
+              <div style={styles.statLbl}>Total Issued</div>
+            </div>
+            <div style={styles.statBox}>
+              <div style={{...styles.statNum, color:C.green}}>{certs.filter(c=>c.status==="valid").length}</div>
+              <div style={styles.statLbl}>Valid</div>
+            </div>
+            <div style={styles.statBox}>
+              <div style={{...styles.statNum, color:C.red}}>{certs.filter(c=>c.status==="revoked").length}</div>
+              <div style={styles.statLbl}>Revoked</div>
+            </div>
           </div>
 
-          <div className="bg-white p-6 rounded shadow">
-            <p className="text-sm">Valid</p>
-            <p className="text-2xl font-bold text-green-600">
-              {certificates.filter(c => c.status === "valid").length}
-            </p>
-          </div>
-
-          <div className="bg-white p-6 rounded shadow">
-            <p className="text-sm">Revoked</p>
-            <p className="text-2xl font-bold text-red-600">
-              {certificates.filter(c => c.status === "revoked").length}
-            </p>
-          </div>
-        </div>
-
-        {/* CREATE CERTIFICATE */}
-        {currentUser.role === "issuer" && (
-          <div className="bg-white p-6 rounded shadow max-w-xl">
-            <h2 className="font-semibold mb-4">Issue Certificate</h2>
-
-            <form onSubmit={handleCreateCertificate} className="space-y-4">
-              <input
-                type="text"
-                placeholder="Holder Name"
-                value={certForm.holderName}
-                onChange={(e) =>
-                  setCertForm({ ...certForm, holderName: e.target.value })
-                }
-                className="w-full border p-2 rounded"
-                required
-              />
-
-              <input
-                type="text"
-                placeholder="Title"
-                value={certForm.title}
-                onChange={(e) =>
-                  setCertForm({ ...certForm, title: e.target.value })
-                }
-                className="w-full border p-2 rounded"
-                required
-              />
-
-              <input
-                type="file"
-                onChange={(e) =>
-                  setCertForm({ ...certForm, file: e.target.files[0] })
-                }
-                className="w-full"
-                required
-              />
-
-              <button className="bg-purple-600 text-white px-4 py-2 rounded flex items-center gap-2">
-                <Upload size={16} />
-                Issue Certificate
+          {/* Issue form */}
+          <div style={styles.card}>
+            <div style={styles.cardTitle}>Issue Certificate</div>
+            <form onSubmit={issue}>
+              <div style={styles.row}>
+                <div>
+                  <label style={styles.label}>Holder Name</label>
+                  <input style={styles.input} placeholder="Full name" value={newCert.holderName}
+                    onChange={e => setNewCert({...newCert, holderName:e.target.value})}/>
+                </div>
+                <div>
+                  <label style={styles.label}>Title</label>
+                  <input style={styles.input} placeholder="e.g. Bachelor of Science" value={newCert.title}
+                    onChange={e => setNewCert({...newCert, title:e.target.value})}/>
+                </div>
+              </div>
+              <div style={{ marginBottom:16 }}>
+                <label style={styles.label}>Certificate File</label>
+                <input style={styles.input} type="file"
+                  onChange={e => setNewCert({...newCert, file:e.target.files[0]})}/>
+              </div>
+              <button type="submit" style={{...styles.btn, ...styles.btnPrimary, ...(issuing?styles.btnDis:{})}} disabled={issuing}>
+                {issuing ? <><Loader2 size={14} style={{animation:"spin 1s linear infinite"}}/> Issuing...</> : "Issue Certificate"}
               </button>
             </form>
           </div>
+
+          {/* Certificate list */}
+          <div style={styles.card}>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
+              <div style={styles.cardTitle}>Certificates ({filtered.length})</div>
+              <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                <button onClick={loadCerts} style={{...styles.logoutBtn, padding:6}}>
+                  <RefreshCw size={14} style={loading?{animation:"spin 1s linear infinite"}:{}}/>
+                </button>
+                <div style={styles.filterRow}>
+                  {["all","valid","revoked"].map(f => (
+                    <button key={f} style={{...styles.pill, ...(filter===f?styles.pillOn:styles.pillOff)}}
+                      onClick={()=>setFilter(f)}>{f}</button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {loading && <div style={{ textAlign:"center", padding:"30px 0", color:C.muted }}>
+              <Loader2 size={20} style={{ animation:"spin 1s linear infinite" }}/>
+            </div>}
+
+            {!loading && filtered.length === 0 && (
+              <p style={{ color:C.muted, fontSize:14, textAlign:"center", padding:"20px 0" }}>No certificates found.</p>
+            )}
+
+            {!loading && filtered.map(cert => {
+              const tx = cert.blockchain_transactions?.[0];
+              const txHash = tx?.tx_hash;
+              const synced = tx?.status === "confirmed";
+              const isRevoking = revoking === cert.certificate_id;
+              return (
+                <div key={cert.id} style={cert.status==="revoked" ? styles.certCardRev : styles.certCard}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:12 }}>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      {/* Title + badges */}
+                      <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap", marginBottom:6 }}>
+                        <span style={{ fontWeight:600, fontSize:15 }}>{cert.title}</span>
+                        <span style={cert.status==="valid" ? styles.badgeGreen : styles.badgeRed}>
+                          {cert.status==="valid" ? "✓ Valid" : "✕ Revoked"}
+                        </span>
+                        <span style={synced ? styles.badgeCyan : styles.badgeGray}>
+                          {synced ? "⛓ Synced" : "⛓ Not synced"}
+                        </span>
+                      </div>
+
+                      <p style={{ fontSize:13, color:C.muted, marginBottom:6 }}>Holder: {cert.holder_name}</p>
+
+                      {/* ID */}
+                      <div style={{ display:"flex", alignItems:"center", gap:4, marginBottom:8 }}>
+                        <span style={styles.mono}>{cert.certificate_id}</span>
+                        <CopyBtn text={cert.certificate_id}/>
+                      </div>
+
+                      {/* Gas */}
+                      {tx?.gas_used && (
+                        <p style={{ fontSize:12, color:C.muted, marginBottom:6 }}>⛽ Gas: {tx.gas_used.toLocaleString()}</p>
+                      )}
+
+                      {/* Links */}
+                      <div style={{ display:"flex", gap:14, flexWrap:"wrap" }}>
+                        {txHash && !txHash.startsWith("failed") && (
+                          <a href={`https://sepolia.etherscan.io/tx/${txHash}`} target="_blank" rel="noreferrer" style={styles.link}>
+                            <ExternalLink size={11}/> Etherscan
+                          </a>
+                        )}
+                        {cert.ipfs_cid && (
+                          <a href={`https://gateway.pinata.cloud/ipfs/${cert.ipfs_cid}`} target="_blank" rel="noreferrer" style={styles.link}>
+                            <ExternalLink size={11}/> IPFS
+                          </a>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Revoke btn */}
+                    <button
+                      style={{...styles.btn, ...styles.btnDanger, ...(cert.status==="revoked"||isRevoking?styles.btnDis:{})}}
+                      onClick={() => revoke(cert.certificate_id, cert.title)}
+                      disabled={cert.status==="revoked" || isRevoking}
+                    >
+                      {isRevoking ? <><Loader2 size={13} style={{animation:"spin 1s linear infinite"}}/> Revoking...</> : cert.status==="revoked" ? "Revoked" : "Revoke"}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>}
+
+        {/* ═══ HOLDER ═══ */}
+        {user.role === "holder" && (
+          <div style={styles.card}>
+            <div style={styles.cardTitle}>My Certificates</div>
+            {loading && <div style={{ textAlign:"center", padding:"20px 0", color:C.muted }}><Loader2 size={20} style={{animation:"spin 1s linear infinite"}}/></div>}
+            {!loading && certs.length === 0 && <p style={{ color:C.muted, fontSize:14 }}>No certificates found.</p>}
+            {!loading && certs.map(cert => (
+              <div key={cert.id} style={cert.status==="revoked" ? styles.certCardRev : styles.certCard}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+                  <div>
+                    <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:6 }}>
+                      <span style={{ fontWeight:600 }}>{cert.title}</span>
+                      <span style={cert.status==="valid" ? styles.badgeGreen : styles.badgeRed}>
+                        {cert.status==="valid" ? "✓ Valid" : "✕ Revoked"}
+                      </span>
+                    </div>
+                    <p style={{ fontSize:13, color:C.muted, marginBottom:4 }}>Issuer: {cert.issuer_name || cert.issuer}</p>
+                    <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+                      <span style={styles.mono}>{cert.certificate_id}</span>
+                      <CopyBtn text={cert.certificate_id}/>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         )}
 
-        {/* CERTIFICATE LIST */}
-        <div className="bg-white p-6 rounded shadow">
-          <h2 className="font-semibold mb-4">Certificates</h2>
+        {/* ═══ VERIFIER ═══ */}
+        {user.role === "verifier" && (
+          <div>
+            <div style={styles.card}>
+              <div style={styles.cardTitle}>Verify Certificate</div>
+              <div style={{ display:"flex", gap:10 }}>
+                <input style={{...styles.input, fontFamily:"monospace", fontSize:13}}
+                  placeholder="Paste Certificate ID"
+                  value={vid} onChange={e => setVid(e.target.value)}
+                  onKeyDown={e => e.key==="Enter" && verify()}/>
+                <button style={{...styles.btn, ...styles.btnCyan, ...(verifying?styles.btnDis:{})}}
+                  onClick={verify} disabled={verifying}>
+                  {verifying ? <><Loader2 size={14} style={{animation:"spin 1s linear infinite"}}/> Verifying...</> : <><Shield size={14}/> Verify</>}
+                </button>
+                {vResult && (
+                  <button style={{...styles.btn, ...styles.btnGhost}}
+                    onClick={()=>{setVResult(null);setVid("");}}>Clear</button>
+                )}
+              </div>
+            </div>
 
-          {certificates.length === 0 ? (
-            <p>No certificates yet</p>
-          ) : (
-            certificates.map((cert) => (
-              <div
-                key={cert.id}
-                className="border p-4 rounded mb-3 flex justify-between"
-              >
-                <div>
-                  <p className="font-semibold">{cert.title}</p>
-                  <p className="text-sm text-gray-500">
-                    Holder: {cert.holder_name}
-                  </p>
+            {vResult && (
+              <div style={{
+                ...styles.card,
+                borderColor: vResult.valid ? "#bbf7d0" : vResult.is_revoked ? "#fca5a5" : "#fde68a",
+                background:  vResult.valid ? C.greenBg  : vResult.is_revoked ? C.redBg   : C.yellowBg,
+              }}>
+                {/* Status */}
+                <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:16 }}>
+                  {vResult.valid
+                    ? <CheckCircle size={28} color={C.green}/>
+                    : vResult.is_revoked
+                    ? <XCircle size={28} color={C.red}/>
+                    : <AlertTriangle size={28} color={C.yellow}/>}
+                  <div>
+                    <div style={{ fontWeight:700, fontSize:18, color: vResult.valid?C.green:vResult.is_revoked?C.red:C.yellow }}>
+                      {vResult.valid ? "Certificate is VALID"
+                        : vResult.is_revoked ? "Certificate has been REVOKED"
+                        : "Certificate is INVALID"}
+                    </div>
+                    {vResult.message && <p style={{ fontSize:13, color:C.muted, marginTop:2 }}>{vResult.message}</p>}
+                  </div>
                 </div>
 
-                <span
-                  className={`px-3 py-1 text-sm rounded ${
-                    cert.status === "valid"
-                      ? "bg-green-100 text-green-700"
-                      : "bg-red-100 text-red-700"
-                  }`}
-                >
-                  {cert.status}
-                </span>
-              </div>
-            ))
-          )}
-        </div>
+                {/* Failure reason */}
+                {!vResult.valid && vResult.failure_reason && (
+                  <div style={{ background:"#fff", border:"1px solid #fca5a5", borderRadius:8, padding:"10px 14px", marginBottom:14 }}>
+                    <span style={{ fontSize:12, fontWeight:600, color:C.red }}>Reason: </span>
+                    <span style={{ fontSize:13, color:"#7f1d1d" }}>{vResult.failure_reason}</span>
+                  </div>
+                )}
 
-      </main>
+                {/* Check grid */}
+                <div style={{ background:"#fff", borderRadius:8, padding:"12px 16px", display:"grid", gridTemplateColumns:"1fr 1fr", gap:"4px 0", marginBottom:14 }}>
+                  {[
+                    { label:"Hash Integrity",  ok:vResult.hash_match },
+                    { label:"Not Revoked",      ok:!vResult.is_revoked },
+                    { label:"Merkle Proof",     ok:vResult.blockchain_verified },
+                    { label:"Blockchain Live",  ok:vResult.blockchain_connected, warn:!vResult.blockchain_connected },
+                  ].map(({label,ok,warn}) => (
+                    <div key={label} style={styles.checkRow}>
+                      {ok ? <CheckCircle size={14} color={C.green}/>
+                        : warn ? <AlertTriangle size={14} color={C.yellow}/>
+                        : <XCircle size={14} color={C.red}/>}
+                      <span style={{ color:ok?C.green:warn?C.yellow:C.red, fontSize:13 }}>{label}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Certificate details */}
+                {vResult.certificate && (
+                  <>
+                    <div style={styles.divider}/>
+                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:12 }}>
+                      {[
+                        ["Title",   vResult.certificate.title],
+                        ["Holder",  vResult.certificate.holder_name],
+                        ["Issuer",  vResult.certificate.issuer_name || vResult.certificate.issuer],
+                        ["Issued",  vResult.certificate.issued_date],
+                      ].filter(([,v])=>v).map(([k,v]) => (
+                        <div key={k}>
+                          <div style={{ fontSize:11, color:C.muted, fontWeight:600, textTransform:"uppercase", letterSpacing:".04em", marginBottom:2 }}>{k}</div>
+                          <div style={{ fontSize:13, color:C.text }}>{v}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                {/* Footer */}
+                <div style={styles.divider}/>
+                <div style={{ display:"flex", flexWrap:"wrap", gap:14, alignItems:"center" }}>
+                  {vResult.gas_used && <span style={{ fontSize:12, color:C.muted }}>⛽ {vResult.gas_used.toLocaleString()} gas</span>}
+                  {vResult.certificate?.ipfs_cid && (
+                    <a href={`https://gateway.pinata.cloud/ipfs/${vResult.certificate.ipfs_cid}`}
+                      target="_blank" rel="noreferrer" style={styles.link}>
+                      <ExternalLink size={11}/> IPFS
+                    </a>
+                  )}
+                  {vResult.certificate?.blockchain_transactions?.[0]?.tx_hash &&
+                    !vResult.certificate.blockchain_transactions[0].tx_hash.startsWith("failed") && (
+                    <a href={`https://sepolia.etherscan.io/tx/${vResult.certificate.blockchain_transactions[0].tx_hash}`}
+                      target="_blank" rel="noreferrer" style={styles.link}>
+                      <ExternalLink size={11}/> Etherscan
+                    </a>
+                  )}
+                  {vResult.verified_at && (
+                    <span style={{ fontSize:11, color:C.muted, marginLeft:"auto" }}>
+                      {new Date(vResult.verified_at).toLocaleString()}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
