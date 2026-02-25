@@ -11,11 +11,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 # Find .env by walking up from this file
-_here = Path(__file__).resolve()
-for _parent in _here.parents:
-    if (_parent / ".env").exists():
-        load_dotenv(_parent / ".env")
-        break
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
 RPC_URL          = os.getenv("SEPOLIA_RPC_URL")
 CONTRACT_ADDRESS = os.getenv("CONTRACT_ADDRESS")

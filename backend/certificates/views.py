@@ -614,9 +614,11 @@ class VerifyCertificateView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
+        # from merkle.merkle_tree import MerkleTree, verify_proof
+        # from blockchain.blockchain_service import get_merkle_root, is_connected
         from merkle.merkle_tree import MerkleTree, verify_proof
         from blockchain.blockchain_service import get_merkle_root, is_connected
-
+        
         serializer = VerifyRequestSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

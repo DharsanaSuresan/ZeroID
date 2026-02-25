@@ -1,0 +1,7 @@
+n,data_source,delta_hash_ops,delta_time_ms,batch_hash_ops,batch_time_ms,proof_nodes,proof_size_bytes,gas_used_batch,gas_used_baseline,gas_savings_pct,bandwidth_savings_pct
+500,CCADB All Certificate Records V4,9,0.016212,90,0.094414,9,288,30729,307290,90.0,90.0
+1000,CCADB All Certificate Records V4,10,0.024557,100,0.104189,10,320,30729,307290,90.0,90.0
+5000,CCADB All Certificate Records V4,13,0.03171,130,0.224113,13,416,30729,307290,90.0,90.0
+10000,CCADB All Certificate Records V4,14,0.020742,140,0.146627,14,448,30729,307290,90.0,90.0
+50000,CCADB All Certificate Records V4,16,0.045061,160,0.167847,16,512,30729,307290,90.0,90.0
+100000,CCADB All Certificate Records V4,17,0.044584,170,0.34523,17,544,30729,307290,90.0,90.0

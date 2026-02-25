@@ -1,0 +1,9 @@
+batch_size,n,data_source,batch_hash_ops,batch_time_ms,gas_used_batch,gas_used_baseline,gas_savings_pct,bandwidth_savings_pct
+1,10000,CCADB All Certificate Records V4,14,0.019073,30729,30729,0.0,0.0
+5,10000,CCADB All Certificate Records V4,70,0.07844,30729,153645,80.0,80.0
+10,10000,CCADB All Certificate Records V4,140,0.148773,30729,307290,90.0,90.0
+25,10000,CCADB All Certificate Records V4,350,0.792027,30729,768225,96.0,96.0
+50,10000,CCADB All Certificate Records V4,700,0.829697,30729,1536450,98.0,98.0
+100,10000,CCADB All Certificate Records V4,1400,2.58708,30729,3072900,99.0,99.0
+200,10000,CCADB All Certificate Records V4,2800,4.611492,30729,6145800,99.5,99.5
+500,10000,CCADB All Certificate Records V4,7000,11.075258,30729,15364500,99.8,99.8

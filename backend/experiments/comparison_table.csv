@@ -1,0 +1,6 @@
+scheme,proof_size_bytes,update_ops,onchain_bytes,gas_cost,privacy,batch_support,proof_complexity,update_complexity,storage_complexity,gas_complexity
+CRL,32000,10,32000,20000000.0,No,No,O(n),O(k),O(n),O(k�n)
+RSA Accumulator,256,10000,256,20000,Yes,No,O(1),O(k) modexp,O(1),O(1)
+Bilinear-Map Acc,48,30000,48,45000,Yes,No,O(1),O(k) pairing,O(1),O(1)
+Standard Merkle,320,10000,32,200000,No,No,O(log n),O(k�n),O(1),O(k)
+ZeroID(Ours),320,100,32,30729,Yes,Yes,O(log n),O(k�log n),O(1),O(1)
